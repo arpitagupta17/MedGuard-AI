@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HiMenu, HiX } from "react-icons/hi";
+import { Link } from "react-router-dom";
 import logo from "../assets/logo.png";
 
 const LINKS = [
-  { label: "Home", href: "#home" },
-  { label: "About", href: "#about" },
-  { label: "Features", href: "#features" },
-  { label: "How It Works", href: "#how-it-works" },
-  { label: "Contact", href: "#contact" },
+  { label: "Home", to: "/" },
+  { label: "Verify Medicine", to: "/verify" },
+  { label: "About", to: "/#about" },
+  { label: "Features", to: "/#features" },
+  { label: "How It Works", to: "/#how-it-works" },
+  { label: "Contact", to: "/#contact" },
 ];
 
 export default function Navbar() {
@@ -17,37 +19,45 @@ export default function Navbar() {
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
+
     window.addEventListener("scroll", onScroll);
+
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return (
     <header className={`navbar ${scrolled ? "navbar--scrolled" : ""}`}>
       <div className="container navbar__inner">
-        <a href="#home" className="navbar__logo">
+
+        {/* Logo */}
+        <Link to="/" className="navbar__logo">
           <img src={logo} alt="MedGuard AI logo" />
           <span>
             MedGuard <em>AI</em>
           </span>
-        </a>
+        </Link>
 
+        {/* Desktop Navigation */}
         <nav className="navbar__links">
           {LINKS.map((l) => (
-            <a key={l.label} href={l.href}>
+            <Link key={l.label} to={l.to}>
               {l.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
+        {/* Desktop Actions */}
         <div className="navbar__actions">
-          <a href="#login" className="btn btn-ghost">
+          <Link to="/login" className="btn btn-ghost">
             Login
-          </a>
-          <a href="#signup" className="btn btn-primary">
+          </Link>
+
+          <Link to="/signup" className="btn btn-primary">
             Sign Up
-          </a>
+          </Link>
         </div>
 
+        {/* Mobile Menu Button */}
         <button
           className="navbar__burger"
           aria-label={open ? "Close menu" : "Open menu"}
@@ -57,6 +67,7 @@ export default function Navbar() {
         </button>
       </div>
 
+      {/* Mobile Menu */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -64,22 +75,39 @@ export default function Navbar() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            transition={{
+              duration: 0.3,
+              ease: [0.16, 1, 0.3, 1],
+            }}
           >
             <nav>
               {LINKS.map((l) => (
-                <a key={l.label} href={l.href} onClick={() => setOpen(false)}>
+                <Link
+                  key={l.label}
+                  to={l.to}
+                  onClick={() => setOpen(false)}
+                >
                   {l.label}
-                </a>
+                </Link>
               ))}
             </nav>
+
             <div className="navbar__mobile-actions">
-              <a href="#login" className="btn btn-secondary">
+              <Link
+                to="/login"
+                className="btn btn-secondary"
+                onClick={() => setOpen(false)}
+              >
                 Login
-              </a>
-              <a href="#signup" className="btn btn-primary">
+              </Link>
+
+              <Link
+                to="/signup"
+                className="btn btn-primary"
+                onClick={() => setOpen(false)}
+              >
                 Sign Up
-              </a>
+              </Link>
             </div>
           </motion.div>
         )}

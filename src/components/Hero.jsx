@@ -1,5 +1,11 @@
 import { motion } from "framer-motion";
-import { HiOutlineSparkles, HiOutlineLockClosed, HiOutlineLightningBolt, HiOutlineBadgeCheck } from "react-icons/hi";
+import {
+  HiOutlineSparkles,
+  HiOutlineLockClosed,
+  HiOutlineLightningBolt,
+  HiOutlineBadgeCheck,
+} from "react-icons/hi";
+import { Link } from "react-router-dom";
 import HeroVisual from "./HeroVisual";
 
 const BADGES = [
@@ -14,7 +20,11 @@ const fadeUp = {
   show: (i = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] },
+    transition: {
+      duration: 0.6,
+      delay: i * 0.1,
+      ease: [0.16, 1, 0.3, 1],
+    },
   }),
 };
 
@@ -24,11 +34,27 @@ export default function Hero() {
       <div className="hero__bg" aria-hidden="true">
         <svg width="100%" height="100%" preserveAspectRatio="none">
           <defs>
-            <pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse">
-              <path d="M56 0H0V56" fill="none" stroke="#E2E8F0" strokeWidth="1" />
+            <pattern
+              id="grid"
+              width="56"
+              height="56"
+              patternUnits="userSpaceOnUse"
+            >
+              <path
+                d="M56 0H0V56"
+                fill="none"
+                stroke="#E2E8F0"
+                strokeWidth="1"
+              />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" opacity="0.5" />
+
+          <rect
+            width="100%"
+            height="100%"
+            fill="url(#grid)"
+            opacity="0.5"
+          />
         </svg>
       </div>
 
@@ -37,9 +63,19 @@ export default function Hero() {
           className="hero__content"
           initial="hidden"
           animate="show"
-          variants={{ show: { transition: { staggerChildren: 0.08 } } }}
+          variants={{
+            show: {
+              transition: {
+                staggerChildren: 0.08,
+              },
+            },
+          }}
         >
-          <motion.span className="eyebrow" variants={fadeUp} custom={0}>
+          <motion.span
+            className="eyebrow"
+            variants={fadeUp}
+            custom={0}
+          >
             AI-Powered Verification Platform
           </motion.span>
 
@@ -49,21 +85,42 @@ export default function Hero() {
             Protect Lives.
           </motion.h1>
 
-          <motion.p className="hero__sub" variants={fadeUp} custom={2}>
+          <motion.p
+            className="hero__sub"
+            variants={fadeUp}
+            custom={2}
+          >
             AI-powered counterfeit medicine detection using Computer Vision,
             OCR, Deep Learning, and secure database verification.
           </motion.p>
 
-          <motion.div className="hero__actions" variants={fadeUp} custom={3}>
-            <a href="#verify" className="btn btn-primary btn-lg">
+          <motion.div
+            className="hero__actions"
+            variants={fadeUp}
+            custom={3}
+          >
+            {/* Go to Verify Medicine page */}
+            <Link
+              to="/verify"
+              className="btn btn-primary btn-lg"
+            >
               Verify Medicine
-            </a>
-            <a href="#how-it-works" className="btn btn-secondary btn-lg">
+            </Link>
+
+            {/* Scroll to How It Works section */}
+            <a
+              href="#how-it-works"
+              className="btn btn-secondary btn-lg"
+            >
               Learn More
             </a>
           </motion.div>
 
-          <motion.ul className="hero__badges" variants={fadeUp} custom={4}>
+          <motion.ul
+            className="hero__badges"
+            variants={fadeUp}
+            custom={4}
+          >
             {BADGES.map(({ icon: Icon, label }) => (
               <li key={label}>
                 <Icon size={16} />
@@ -77,7 +134,11 @@ export default function Hero() {
           className="hero__visual-col"
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          transition={{
+            duration: 0.8,
+            delay: 0.2,
+            ease: [0.16, 1, 0.3, 1],
+          }}
         >
           <HeroVisual />
         </motion.div>

@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 
 export default function CTA() {
   return (
@@ -8,17 +9,36 @@ export default function CTA() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          transition={{
+            duration: 0.6,
+            ease: [0.16, 1, 0.3, 1],
+          }}
         >
           <h2>Start Verifying Medicines Today</h2>
-          <p>Join pharmacies, hospitals, and patients using MedGuard AI to catch counterfeits before they cause harm.</p>
+
+          <p>
+            Join pharmacies, hospitals, and patients using MedGuard AI
+            to catch counterfeits before they cause harm.
+          </p>
+
           <div className="cta__actions">
-            <a href="#verify" className="btn btn-cta-primary">
+
+            {/* Verify Medicine */}
+            <Link
+              to="/verify"
+              className="btn btn-cta-primary"
+            >
               Verify Medicine
-            </a>
-            <a href="#signup" className="btn btn-cta-secondary">
+            </Link>
+
+            {/* Sign Up */}
+            <Link
+              to="/signup"
+              className="btn btn-cta-secondary"
+            >
               Create Free Account
-            </a>
+            </Link>
+
           </div>
         </motion.div>
       </div>
