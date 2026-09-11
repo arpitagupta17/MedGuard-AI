@@ -1,0 +1,43 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+.mg-page { min-height: 100vh; background:#f8fafc; color:#253449; font-family:Inter,sans-serif; padding:110px 24px 70px; }
+.mg-page__inner { max-width:1180px; margin:auto; }
+.mg-back { border:0; background:transparent; color:#2461d9; font-weight:700; display:flex; gap:8px; align-items:center; cursor:pointer; margin-bottom:24px; }
+.mg-page__heading { display:flex; justify-content:space-between; gap:24px; align-items:end; margin-bottom:28px; }
+.mg-page__eyebrow { color:#2461d9; background:#eef4fd; border-radius:999px; padding:7px 12px; font-size:12px; font-weight:700; display:inline-flex; gap:7px; align-items:center; text-transform:uppercase; letter-spacing:.04em; }
+.mg-page__heading h1 { font-size:38px; color:#101b2d; margin:14px 0 8px; }
+.mg-page__heading p { color:#536178; }
+.mg-primary-btn { border:0; border-radius:10px; padding:13px 18px; background:#2461d9; color:white; font-weight:700; cursor:pointer; }
+.mg-search { background:white; border:1px solid #e5eaf1; border-radius:12px; display:flex; align-items:center; gap:10px; padding:13px 16px; margin-bottom:22px; }
+.mg-search svg { color:#8a97ab; font-size:20px; }
+.mg-search input { border:0; outline:0; width:100%; font-size:15px; font-family:inherit; }
+.medicine-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+.medicine-card { background:#fff; border:1px solid #e5eaf1; border-radius:16px; padding:22px; box-shadow:0 3px 12px rgba(16,27,45,.05); }
+.medicine-card__top { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.medicine-card__icon,.medicine-modal__icon { width:46px; height:46px; border-radius:12px; background:#eef4fd; display:grid; place-items:center; font-size:23px; }
+.medicine-card h2 { color:#101b2d; font-size:20px; margin-bottom:5px; }
+.medicine-card h2 span { color:#536178; font-weight:500; font-size:14px; }
+.medicine-card__manufacturer { color:#536178; font-size:13px; margin-bottom:18px; }
+.medicine-badge { display:inline-flex; align-items:center; gap:5px; padding:6px 9px; border-radius:999px; font-size:12px; font-weight:700; }
+.medicine-badge--genuine { color:#17825a; background:#eaf7f1; }
+.medicine-badge--flagged { color:#a4650f; background:#fdf3e7; }
+.medicine-card__details,.medicine-modal__grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.medicine-card__details { padding:15px 0; border-top:1px solid #e5eaf1; border-bottom:1px solid #e5eaf1; }
+.medicine-card__details div,.medicine-modal__grid div { display:flex; flex-direction:column; gap:3px; }
+.medicine-card__details span,.medicine-modal__grid span { color:#8a97ab; font-size:11px; }
+.medicine-card__details strong,.medicine-modal__grid strong { color:#253449; font-size:13px; }
+.medicine-card__button { width:100%; margin-top:16px; padding:11px; border:1px solid #dbe9fb; background:#eef4fd; color:#1c50b8; border-radius:9px; font-weight:700; cursor:pointer; }
+.mg-empty { text-align:center; padding:70px 20px; background:#fff; border:1px solid #e5eaf1; border-radius:16px; }
+.mg-empty div { font-size:35px; }
+.mg-empty h2 { color:#101b2d; margin:10px 0 5px; }
+.mg-empty p { color:#536178; }
+.mg-modal-backdrop { position:fixed; inset:0; background:rgba(16,27,45,.5); display:grid; place-items:center; padding:20px; z-index:1000; }
+.mg-modal { width:min(500px,100%); background:white; border-radius:18px; padding:28px; position:relative; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+.mg-modal__close { position:absolute; top:12px; right:14px; border:0; background:transparent; font-size:28px; color:#536178; cursor:pointer; }
+.medicine-modal__icon { margin-bottom:14px; }
+.mg-modal h2 { color:#101b2d; margin:14px 0 5px; }
+.mg-modal > p { color:#536178; margin-bottom:20px; }
+.medicine-modal__grid { padding:18px 0; border-top:1px solid #e5eaf1; border-bottom:1px solid #e5eaf1; }
+.medicine-modal__notice { margin:18px 0; padding:13px; background:#f6f9fc; border-radius:10px; color:#536178; font-size:12px; line-height:1.5; display:flex; gap:8px; }
+@media(max-width:850px){.medicine-grid{grid-template-columns:1fr 1fr}.mg-page__heading{align-items:flex-start; flex-direction:column}}
+@media(max-width:560px){.medicine-grid{grid-template-columns:1fr}.mg-page{padding:95px 16px 50px}.mg-page__heading h1{font-size:30px}}

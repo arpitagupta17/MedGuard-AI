@@ -28,6 +28,7 @@ import "./dashboard.css";
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", path: "/dashboard", icon: HiOutlineHome },
   { key: "verify", label: "Verify Medicine", path: "/verify", icon: HiOutlineSearch },
+  { key: "medicines", label: "My Medicines", path: "/medicines", icon: HiOutlineShieldCheck },
   { key: "history", label: "History", path: "/history", icon: HiOutlineClipboardList },
   { key: "reports", label: "Reports", path: "/reports", icon: HiOutlineChartBar },
   { key: "settings", label: "Settings", path: "/settings", icon: HiOutlineCog },
@@ -54,6 +55,13 @@ const QUICK_ACTIONS = [
     desc: "Start a new verification",
     icon: HiOutlineSearch,
     path: "/verify",
+  },
+  {
+    key: "medicines",
+    title: "My Medicines",
+    desc: "Manage your saved medicines",
+    icon: HiOutlineShieldCheck,
+    path: "/medicines",
   },
   {
     key: "history",
@@ -144,7 +152,9 @@ export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const profileRef = useRef(null);
+  const notificationsRef = useRef(null);
 
   // Protected-route check (frontend/demo auth only — not real security).
   useEffect(() => {
@@ -156,11 +166,14 @@ export default function Dashboard() {
     setUser(stored);
   }, [navigate]);
 
-  // Close the profile dropdown when clicking outside of it.
+  // Close profile/notification menus when clicking outside.
   useEffect(() => {
     function handleClickOutside(event) {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setProfileOpen(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setNotificationsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -252,10 +265,40 @@ export default function Dashboard() {
           </div>
 
           <div className="mg-header__right">
-            <button type="button" className="mg-icon-btn" aria-label="Notifications">
-              <HiOutlineBell />
-              <span className="mg-icon-btn__dot" aria-hidden="true" />
-            </button>
+            <div className="mg-notifications" ref={notificationsRef}>
+              <button
+                type="button"
+                className="mg-icon-btn"
+                aria-label="Notifications"
+                aria-expanded={notificationsOpen}
+                onClick={() => setNotificationsOpen((open) => !open)}
+              >
+                <HiOutlineBell />
+                <span className="mg-icon-btn__dot" aria-hidden="true" />
+              </button>
+
+              {notificationsOpen && (
+                <div className="mg-notifications__dropdown">
+                  <div className="mg-notifications__head">
+                    <strong>Notifications</strong>
+                    <span>3 new</span>
+                  </div>
+                  <div className="mg-notification mg-notification--warning">
+                    <span>⚠️</span>
+                    <div><strong>Medicine flagged</strong><p>XYZ Tablet requires further verification.</p><small>Today</small></div>
+                  </div>
+                  <div className="mg-notification mg-notification--success">
+                    <span>✓</span>
+                    <div><strong>Verification completed</strong><p>Paracetamol was successfully screened.</p><small>Today</small></div>
+                  </div>
+                  <div className="mg-notification">
+                    <span>⏳</span>
+                    <div><strong>Expiry reminder</strong><p>Vitamin D expires in 30 days.</p><small>Yesterday</small></div>
+                  </div>
+                  <button className="mg-notifications__all" onClick={() => goTo("/settings")}>Notification settings</button>
+                </div>
+              )}
+            </div>
 
             <div className="mg-profile" ref={profileRef}>
               <button
@@ -320,7 +363,7 @@ export default function Dashboard() {
           <section className="mg-welcome">
             <h2 className="mg-welcome__title">Welcome back, {displayName} 👋</h2>
             <p className="mg-welcome__subtitle">
-              Monitor your medicine verification activity and keep track of your results.
+              Manage your medicines, verify new products, and review your safety activity.
             </p>
           </section>
 

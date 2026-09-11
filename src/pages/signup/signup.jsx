@@ -13,6 +13,7 @@ import {
 } from "react-icons/hi";
 import logo from "../../assets/logo.png";
 import "./signup.css";
+import { registerDemoAccount } from "../../utils/auth";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_NAME_LENGTH = 2;
@@ -46,30 +47,13 @@ function meetsPasswordRequirements(password) {
 }
 
 // ---------------------------------------------------------------------------
-// DEMO SIGNUP ONLY.
-// No backend/auth service is connected yet. This function exists so the
-// rest of the component (validation, loading, error, success states) stays
-// unchanged when real signup is wired up — only this function's body needs
-// to be replaced, e.g.:
-//
-//   const res = await fetch("/api/signup", {
-//     method: "POST",
-//     headers: { "Content-Type": "application/json" },
-//     body: JSON.stringify({ name, email, password }),
-//   });
-//   if (!res.ok) throw new Error("Unable to create your account. Please try again.");
-//   const data = await res.json();
+// DEMO SIGNUP.
+// Replace registerDemoAccount with a POST /api/auth/register call when the
+// backend is connected.
 // ---------------------------------------------------------------------------
-function demoSignup(name, email, password) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (name && email && password) {
-        resolve({ name, email });
-      } else {
-        reject(new Error("Unable to create your account. Please try again."));
-      }
-    }, 1300);
-  });
+async function createAccount(name, email, password) {
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  return registerDemoAccount({ name, email, password });
 }
 
 export default function SignUp() {
@@ -146,7 +130,7 @@ export default function SignUp() {
     setIsSubmitting(true);
 
     try {
-      const user = await demoSignup(name.trim(), email, password);
+      const user = await createAccount(name.trim(), email, password);
 
       // DEMO ONLY: localStorage is not secure authentication. This is a
       // placeholder until a real backend/auth service is connected.
@@ -160,7 +144,7 @@ export default function SignUp() {
       );
 
       setIsSuccess(true);
-      setTimeout(() => navigate("/verify"), 1100);
+      setTimeout(() => navigate("/dashboard"), 700);
     } catch (err) {
       setFormError(err.message || "Unable to create your account. Please try again.");
     } finally {
@@ -231,7 +215,7 @@ export default function SignUp() {
                 >
                   <HiOutlineCheckCircle className="signup-success__icon" aria-hidden="true" />
                   <h2 className="signup-success__title">Account created successfully!</h2>
-                  <p className="signup-success__text">Taking you to medicine verification&hellip;</p>
+                  <p className="signup-success__text">Taking you to your dashboard&hellip;</p>
                 </motion.div>
               ) : (
                 <motion.div key="form" initial={{ opacity: 1 }} exit={{ opacity: 0 }}>

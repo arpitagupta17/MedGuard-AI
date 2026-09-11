@@ -12,27 +12,17 @@ import {
 
 import logo from "../../assets/logo.png";
 import "./login.css";
+import { authenticateDemoAccount, saveLoggedInUser } from "../../utils/auth";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ---------------------------------------------------------------------------
-// DEMO AUTHENTICATION ONLY.
-// Replace this function with your real backend authentication later.
+// DEMO AUTHENTICATION.
+// This frontend stores a demo account locally until a real backend is wired in.
 // ---------------------------------------------------------------------------
-function demoAuthenticate(email, password) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (email && password) {
-        resolve({ email });
-      } else {
-        reject(
-          new Error(
-            "Unable to sign in. Please check your email and password."
-          )
-        );
-      }
-    }, 1200);
-  });
+async function authenticate(email, password) {
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  return authenticateDemoAccount(email, password);
 }
 
 export default function Login() {
@@ -102,24 +92,11 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      // Demo authentication
-      const user = await demoAuthenticate(
-        email,
-        password
-      );
+      const user = await authenticate(email, password);
 
-      // Save logged-in user
-      // DEMO ONLY - replace with real authentication later
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          name: "User",
-          email: user.email,
-          isLoggedIn: true,
-        })
-      );
+      saveLoggedInUser(user);
 
-      // Go to Dashboard after successful login
+      // Go to the personalized dashboard after successful login.
       navigate("/dashboard");
     } catch (err) {
       setFormError(
