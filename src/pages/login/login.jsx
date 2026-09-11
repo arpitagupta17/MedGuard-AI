@@ -96,8 +96,8 @@ export default function Login() {
 
       saveLoggedInUser(user);
 
-      // Go to the personalized dashboard after successful login.
-      navigate("/dashboard");
+// Go to the personalized dashboard after successful login.
+navigate("/dashboard");
     } catch (err) {
       setFormError(
         err.message ||
