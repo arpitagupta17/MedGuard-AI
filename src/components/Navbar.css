@@ -1,0 +1,805 @@
+/* =========================================================
+   MEDGUARD AI — NAVBAR
+========================================================= */
+
+.navbar {
+  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+
+  transition:
+    box-shadow 0.3s ease,
+    background 0.3s ease;
+}
+
+.navbar--scrolled {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+
+/* =========================================================
+   NAVBAR INNER
+========================================================= */
+
+.navbar__inner {
+  min-height: 76px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 30px;
+}
+
+
+/* =========================================================
+   LOGO
+========================================================= */
+
+.navbar__logo {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  text-decoration: none;
+
+  color: #17233c;
+
+  font-size: 22px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+.navbar__logo img {
+  width: 42px;
+  height: 42px;
+
+  object-fit: contain;
+
+  display: block;
+}
+
+.navbar__logo em {
+  color: #12b981;
+  font-style: normal;
+}
+
+
+/* =========================================================
+   DESKTOP NAVIGATION
+========================================================= */
+
+.navbar__links {
+  display: flex;
+  align-items: center;
+
+  gap: 30px;
+}
+
+.navbar__link {
+  position: relative;
+
+  color: #506079;
+
+  text-decoration: none;
+
+  font-size: 16px;
+  font-weight: 500;
+
+  padding: 8px 0;
+
+  transition:
+    color 0.25s ease;
+
+  /*
+    Important for Verify Medicine button.
+    Makes button text behave like normal links.
+  */
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   DESKTOP LINK UNDERLINE
+========================================================= */
+
+.navbar__link::after {
+  content: "";
+
+  position: absolute;
+
+  left: 0;
+  bottom: 0;
+
+  width: 0;
+  height: 2px;
+
+  border-radius: 2px;
+
+  background: #1264d8;
+
+  transition:
+    width 0.25s ease;
+}
+
+
+/* =========================================================
+   UNDERLINE ONLY ON HOVER
+========================================================= */
+
+.navbar__link:hover::after {
+  width: 100%;
+}
+
+
+/* =========================================================
+   TEXT BECOMES BLUE ON HOVER
+========================================================= */
+
+.navbar__link:hover {
+  color: #1264d8;
+}
+
+
+/* =========================================================
+   ACTIVE LINK
+   NO PERMANENT UNDERLINE
+========================================================= */
+
+.navbar__link--active {
+  color: #506079;
+
+  border-bottom: none;
+}
+
+.navbar__link--active::after {
+  width: 0;
+}
+
+
+/* =========================================================
+   VERIFY MEDICINE DESKTOP BUTTON
+========================================================= */
+
+.navbar__verify-button {
+  /*
+    Remove default browser button appearance.
+  */
+  border: none;
+
+  background: transparent;
+
+  font-family: inherit;
+
+  cursor: pointer;
+
+  /*
+    Keep exactly the same sizing as navbar links.
+  */
+  padding: 8px 0;
+
+  margin: 0;
+
+  color: #506079;
+
+  font-size: 16px;
+  font-weight: 500;
+
+  line-height: normal;
+
+  position: relative;
+
+  transition:
+    color 0.25s ease;
+}
+
+.navbar__verify-button:hover {
+  color: #1264d8;
+}
+
+.navbar__verify-button::after {
+  content: "";
+
+  position: absolute;
+
+  left: 0;
+  bottom: 0;
+
+  width: 0;
+  height: 2px;
+
+  border-radius: 2px;
+
+  background: #1264d8;
+
+  transition:
+    width 0.25s ease;
+}
+
+.navbar__verify-button:hover::after {
+  width: 100%;
+}
+
+.navbar__verify-button.navbar__link--active::after {
+  width: 0;
+}
+
+
+/* =========================================================
+   NAVBAR ACTIONS
+========================================================= */
+
+.navbar__actions {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+}
+
+
+/* =========================================================
+   COMMON BUTTON
+========================================================= */
+
+.navbar .btn {
+  text-decoration: none;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 44px;
+
+  padding: 0 22px;
+
+  border-radius: 999px;
+
+  font-family: inherit;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  line-height: 1;
+
+  white-space: nowrap;
+
+  box-sizing: border-box;
+
+  cursor: pointer;
+
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+
+/* =========================================================
+   LOGIN BUTTON
+========================================================= */
+
+.navbar .btn-ghost {
+  color: #26364f !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #26364f !important;
+
+  box-shadow: none;
+}
+
+.navbar .btn-ghost:hover {
+  color: #ffffff !important;
+
+  background: #26364f !important;
+
+  border-color: #26364f !important;
+
+  transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   SIGN UP BUTTON
+========================================================= */
+
+.navbar .btn-primary {
+  display: inline-flex;
+
+  color: #ffffff !important;
+
+  background: linear-gradient(
+    135deg,
+    #1264d8 0%,
+    #12b981 100%
+  ) !important;
+
+  border: 1px solid transparent !important;
+
+  opacity: 1 !important;
+
+  visibility: visible !important;
+
+  box-shadow:
+    0 8px 20px rgba(18, 100, 216, 0.18);
+
+  overflow: visible;
+}
+
+.navbar .btn-primary:hover {
+  color: #ffffff !important;
+
+  background: linear-gradient(
+    135deg,
+    #1264d8 0%,
+    #12b981 100%
+  ) !important;
+
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 10px 25px rgba(18, 100, 216, 0.25);
+}
+
+
+/* =========================================================
+   LOGGED-IN USER BUTTON
+========================================================= */
+
+.navbar__user {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 8px;
+
+  border: none;
+
+  background: #f1f6ff;
+
+  color: #1264d8;
+
+  padding: 9px 15px;
+
+  border-radius: 999px;
+
+  font-family: inherit;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.25s ease,
+    transform 0.25s ease;
+}
+
+.navbar__user:hover {
+  background: #e5efff;
+
+  transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   USER ICON
+========================================================= */
+
+.navbar__user svg {
+  width: 20px;
+  height: 20px;
+
+  flex-shrink: 0;
+}
+
+
+/* =========================================================
+   LOGOUT BUTTON
+========================================================= */
+
+.navbar__logout {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 7px;
+
+  border: none;
+
+  background: transparent;
+
+  color: #526176;
+
+  padding: 9px 12px;
+
+  border-radius: 8px;
+
+  font-family: inherit;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    color 0.25s ease,
+    background 0.25s ease;
+}
+
+.navbar__logout:hover {
+  color: #d64545;
+
+  background: #fff3f3;
+}
+
+.navbar__logout svg {
+  width: 18px;
+  height: 18px;
+
+  flex-shrink: 0;
+}
+
+
+/* =========================================================
+   MOBILE MENU BUTTON
+========================================================= */
+
+.navbar__burger {
+  display: none;
+
+  align-items: center;
+  justify-content: center;
+
+  width: 42px;
+  height: 42px;
+
+  padding: 8px;
+
+  border: none;
+
+  border-radius: 8px;
+
+  background: transparent;
+
+  color: #17233c;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.navbar__burger:hover {
+  background: #f6f9fc;
+
+  color: #1264d8;
+}
+
+
+/* =========================================================
+   MOBILE MENU
+========================================================= */
+
+.navbar__mobile {
+  display: none;
+
+  overflow: hidden;
+
+  background: #ffffff;
+
+  border-top: 1px solid #edf0f5;
+
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.06);
+}
+
+
+/* =========================================================
+   MOBILE NAVIGATION
+========================================================= */
+
+.navbar__mobile nav {
+  display: flex;
+
+  flex-direction: column;
+
+  padding: 15px 20px;
+}
+
+
+/* =========================================================
+   MOBILE LINKS
+========================================================= */
+
+.navbar__mobile-link {
+  position: relative;
+
+  width: 100%;
+
+  padding: 13px 5px;
+
+  color: #506079;
+
+  text-decoration: none;
+
+  font-size: 16px;
+  font-weight: 500;
+
+  border: none;
+  border-bottom: 1px solid #f0f2f5;
+
+  background: transparent;
+
+  font-family: inherit;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    color 0.25s ease,
+    background 0.25s ease;
+}
+
+.navbar__mobile-link:hover {
+  color: #1264d8;
+}
+
+
+/* =========================================================
+   ACTIVE MOBILE LINK
+========================================================= */
+
+.navbar__mobile-link--active {
+  color: #506079;
+
+  border-bottom: 1px solid #f0f2f5;
+}
+
+
+/* =========================================================
+   MOBILE VERIFY MEDICINE BUTTON
+========================================================= */
+
+.navbar__mobile-verify-button {
+  width: 100%;
+
+  text-align: left;
+
+  background: transparent;
+
+  font-family: inherit;
+
+  cursor: pointer;
+
+  border: none;
+
+  border-bottom: 1px solid #f0f2f5;
+
+  padding: 13px 5px;
+
+  color: #506079;
+
+  font-size: 16px;
+  font-weight: 500;
+
+  line-height: normal;
+
+  margin: 0;
+
+  transition:
+    color 0.25s ease,
+    background 0.25s ease;
+}
+
+.navbar__mobile-verify-button:hover {
+  color: #1264d8;
+
+  background: #fafcff;
+}
+
+
+/* =========================================================
+   MOBILE ACTIONS
+========================================================= */
+
+.navbar__mobile-actions {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 10px;
+
+  padding: 15px 20px 20px;
+}
+
+
+/* =========================================================
+   MOBILE USER BUTTON
+========================================================= */
+
+.navbar__mobile-user {
+  width: 100%;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding: 12px;
+
+  border-radius: 10px;
+
+  cursor: pointer;
+
+  font-family: inherit;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  background: #f1f6ff;
+
+  border: none;
+
+  color: #1264d8;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.navbar__mobile-user:hover {
+  background: #e5efff;
+
+  transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   MOBILE LOGOUT
+========================================================= */
+
+.navbar__mobile-logout {
+  width: 100%;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding: 12px;
+
+  border-radius: 10px;
+
+  cursor: pointer;
+
+  font-family: inherit;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  background: #fff3f3;
+
+  border: none;
+
+  color: #d64545;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.navbar__mobile-logout:hover {
+  background: #ffe8e8;
+
+  transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   MOBILE BUTTONS
+========================================================= */
+
+.navbar__mobile-actions .btn {
+  width: 100%;
+
+  min-height: 44px;
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 1000px) {
+
+  .navbar__links,
+  .navbar__actions {
+    display: none;
+  }
+
+  .navbar__burger {
+    display: inline-flex;
+  }
+
+  .navbar__mobile {
+    display: block;
+  }
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+  .navbar__inner {
+    min-height: 68px;
+
+    gap: 15px;
+  }
+
+  .navbar__logo {
+    font-size: 19px;
+
+    gap: 8px;
+  }
+
+  .navbar__logo img {
+    width: 36px;
+    height: 36px;
+  }
+
+  .navbar__burger {
+    width: 40px;
+    height: 40px;
+  }
+
+  .navbar__mobile nav {
+    padding: 12px 16px;
+  }
+
+  .navbar__mobile-actions {
+    padding:
+      12px
+      16px
+      18px;
+  }
+}
+
+
+/* =========================================================
+   VERY SMALL MOBILE
+========================================================= */
+
+@media (max-width: 400px) {
+
+  .navbar__logo {
+    font-size: 18px;
+  }
+
+  .navbar__logo img {
+    width: 34px;
+    height: 34px;
+  }
+
+  .navbar__inner {
+    min-height: 64px;
+  }
+}

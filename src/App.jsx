@@ -17,6 +17,7 @@ import Settings from "./pages/settings/settings";
 function AppShell() {
   const location = useLocation();
 
+  // Pages that use the dashboard layout
   const appRoutes = [
     "/dashboard",
     "/medicines",
@@ -29,22 +30,30 @@ function AppShell() {
 
   return (
     <div className={`app ${isAppArea ? "app--dashboard-area" : ""}`}>
+      
+      {/* Main website Navbar */}
       {!isAppArea && <Navbar />}
 
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/verify" element={<VerifyMedicine />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+      {/* Page Content */}
+      <main className="app-content">
+        <Routes>
+          {/* Public Pages */}
+          <Route path="/" element={<Home />} />
+          <Route path="/verify" element={<VerifyMedicine />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/medicines" element={<Medicines />} />
-        <Route path="/history" element={<History />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/settings" element={<Settings />} />
-      </Routes>
+          {/* Dashboard Pages */}
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/medicines" element={<Medicines />} />
+          <Route path="/history" element={<History />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+      </main>
 
-      {!isAppArea && <Footer />}
+      {/* Footer appears on ALL pages */}
+      <Footer />
     </div>
   );
 }

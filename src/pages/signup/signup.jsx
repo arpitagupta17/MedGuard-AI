@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+
 import {
   HiOutlineUser,
   HiOutlineMail,
@@ -11,31 +12,62 @@ import {
   HiOutlineArrowLeft,
   HiOutlineCheckCircle,
 } from "react-icons/hi";
+
 import logo from "../../assets/logo.png";
 import "./signup.css";
+
 import { registerDemoAccount } from "../../utils/auth";
+
+/* =========================================================
+   VALIDATION CONSTANTS
+========================================================= */
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_NAME_LENGTH = 2;
 
-// ---------------------------------------------------------------------------
-// Password strength: a simple, transparent heuristic for UI feedback only.
-// Not a substitute for real backend password policy enforcement.
-// ---------------------------------------------------------------------------
+/* =========================================================
+   PASSWORD STRENGTH
+========================================================= */
+
 function getPasswordStrength(password) {
-  if (!password) return { label: "", score: 0 };
+  if (!password) {
+    return {
+      label: "",
+      score: 0,
+    };
+  }
 
   let score = 0;
+
   if (password.length >= 8) score += 1;
   if (/[A-Z]/.test(password)) score += 1;
   if (/[a-z]/.test(password)) score += 1;
   if (/[0-9]/.test(password)) score += 1;
   if (/[^A-Za-z0-9]/.test(password)) score += 1;
 
-  if (score <= 2) return { label: "Weak", score: 1 };
-  if (score <= 4) return { label: "Medium", score: 2 };
-  return { label: "Strong", score: 3 };
+  if (score <= 2) {
+    return {
+      label: "Weak",
+      score: 1,
+    };
+  }
+
+  if (score <= 4) {
+    return {
+      label: "Medium",
+      score: 2,
+    };
+  }
+
+  return {
+    label: "Strong",
+    score: 3,
+  };
 }
+
+/* =========================================================
+   PASSWORD REQUIREMENTS
+========================================================= */
 
 function meetsPasswordRequirements(password) {
   return (
@@ -46,26 +78,68 @@ function meetsPasswordRequirements(password) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// DEMO SIGNUP.
-// Replace registerDemoAccount with a POST /api/auth/register call when the
-// backend is connected.
-// ---------------------------------------------------------------------------
+/* =========================================================
+   DEMO SIGNUP
+   Replace with FastAPI later
+========================================================= */
+
 async function createAccount(name, email, password) {
   await new Promise((resolve) => setTimeout(resolve, 700));
-  return registerDemoAccount({ name, email, password });
+
+  return registerDemoAccount({
+    name,
+    email,
+    password,
+  });
 }
+
+/* =========================================================
+   SIGNUP COMPONENT
+========================================================= */
 
 export default function SignUp() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  /*
+    If the user came to Signup by clicking
+    "Verify Medicine", location.state will contain:
+
+    {
+      from: "/verify"
+    }
+
+    Otherwise, from will be undefined.
+  */
+  const from = location.state?.from;
+
+  /* -------------------------------------------------------
+     Form values
+  ------------------------------------------------------- */
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  /* -------------------------------------------------------
+     Password visibility
+  ------------------------------------------------------- */
+
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState(false);
+
+  /* -------------------------------------------------------
+     Terms
+  ------------------------------------------------------- */
+
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+  /* -------------------------------------------------------
+     Validation
+  ------------------------------------------------------- */
 
   const [touched, setTouched] = useState({
     name: false,
@@ -74,16 +148,34 @@ export default function SignUp() {
     confirmPassword: false,
   });
 
+  /* -------------------------------------------------------
+     UI state
+  ------------------------------------------------------- */
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [formError, setFormError] = useState("");
+
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const strength = useMemo(() => getPasswordStrength(password), [password]);
+  /* -------------------------------------------------------
+     Password strength
+  ------------------------------------------------------- */
+
+  const strength = useMemo(
+    () => getPasswordStrength(password),
+    [password]
+  );
+
+  /* =======================================================
+     VALIDATION
+  ======================================================= */
 
   const nameError =
     touched.name && !name.trim()
       ? "Please enter your name."
-      : touched.name && name.trim().length < MIN_NAME_LENGTH
+      : touched.name &&
+        name.trim().length < MIN_NAME_LENGTH
       ? "Please enter your full name."
       : "";
 
@@ -97,14 +189,16 @@ export default function SignUp() {
   const passwordError =
     touched.password && !password
       ? "Password is required."
-      : touched.password && !meetsPasswordRequirements(password)
+      : touched.password &&
+        !meetsPasswordRequirements(password)
       ? "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number."
       : "";
 
   const confirmPasswordError =
     touched.confirmPassword && !confirmPassword
       ? "Please confirm your password."
-      : touched.confirmPassword && confirmPassword !== password
+      : touched.confirmPassword &&
+        confirmPassword !== password
       ? "Passwords do not match."
       : "";
 
@@ -115,25 +209,58 @@ export default function SignUp() {
     confirmPassword === password &&
     agreedToTerms;
 
+  /* =======================================================
+     BLUR
+  ======================================================= */
+
   function handleBlur(field) {
-    setTouched((prev) => ({ ...prev, [field]: true }));
+    setTouched((previous) => ({
+      ...previous,
+      [field]: true,
+    }));
   }
+
+  /* =======================================================
+     SUBMIT
+  ======================================================= */
 
   async function handleSubmit(e) {
     e.preventDefault();
 
-    setTouched({ name: true, email: true, password: true, confirmPassword: true });
+    /* Show all validation errors */
+
+    setTouched({
+      name: true,
+      email: true,
+      password: true,
+      confirmPassword: true,
+    });
+
     setFormError("");
 
-    if (!isFormValid || isSubmitting) return;
+    /* Stop if invalid */
+
+    if (!isFormValid || isSubmitting) {
+      return;
+    }
 
     setIsSubmitting(true);
 
     try {
-      const user = await createAccount(name.trim(), email, password);
+      /* ---------------------------------------------------
+         Create account
+      --------------------------------------------------- */
 
-      // DEMO ONLY: localStorage is not secure authentication. This is a
-      // placeholder until a real backend/auth service is connected.
+      const user = await createAccount(
+        name.trim(),
+        email.trim(),
+        password
+      );
+
+      /* ---------------------------------------------------
+         SAVE LOGGED-IN USER
+      --------------------------------------------------- */
+
       localStorage.setItem(
         "user",
         JSON.stringify({
@@ -143,34 +270,103 @@ export default function SignUp() {
         })
       );
 
+      /* ---------------------------------------------------
+         IMPORTANT:
+         Tell Navbar authentication has changed.
+      --------------------------------------------------- */
+
+      window.dispatchEvent(new Event("authChanged"));
+
+      /* ---------------------------------------------------
+         Show success message
+      --------------------------------------------------- */
+
       setIsSuccess(true);
-      setTimeout(() => navigate("/dashboard"), 700);
+
+      /* ---------------------------------------------------
+         IMPORTANT REDIRECT LOGIC
+
+         If Signup was opened because the user wanted
+         to verify a medicine:
+
+             Signup -> Verify
+
+         Otherwise:
+
+             Signup -> Dashboard
+      --------------------------------------------------- */
+
+      setTimeout(() => {
+        if (from === "/verify") {
+          navigate("/verify", {
+            replace: true,
+          });
+        } else {
+          navigate("/dashboard", {
+            replace: true,
+          });
+        }
+      }, 700);
     } catch (err) {
-      setFormError(err.message || "Unable to create your account. Please try again.");
+      setFormError(
+        err.message ||
+          "Unable to create your account. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
   }
 
+  /* =======================================================
+     UI
+  ======================================================= */
+
   return (
     <section className="signup-page">
       <div className="signup-layout">
-        {/* ---------------- Branding side ---------------- */}
+
+        {/* =================================================
+            BRANDING SIDE
+        ================================================== */}
+
         <motion.aside
           className="signup-branding"
-          initial={{ opacity: 0, x: -16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4 }}
+          initial={{
+            opacity: 0,
+            x: -16,
+          }}
+          animate={{
+            opacity: 1,
+            x: 0,
+          }}
+          transition={{
+            duration: 0.4,
+          }}
         >
-          <div className="signup-branding__pattern" aria-hidden="true" />
+          <div
+            className="signup-branding__pattern"
+            aria-hidden="true"
+          />
 
           <div className="signup-branding__content">
-            <Link to="/" className="signup-branding__logo">
-              <img src={logo} alt="MedGuard AI logo" />
+
+            {/* Logo */}
+
+            <Link
+              to="/"
+              className="signup-branding__logo"
+            >
+              <img
+                src={logo}
+                alt="MedGuard AI logo"
+              />
+
               <span>
                 MedGuard <em>AI</em>
               </span>
             </Link>
+
+            {/* Heading */}
 
             <h1 className="signup-branding__headline">
               Verify Medicines.
@@ -178,10 +374,15 @@ export default function SignUp() {
               Protect Lives.
             </h1>
 
+            {/* Description */}
+
             <p className="signup-branding__text">
-              Join MedGuard AI and make medicine verification faster, smarter,
-              and more accessible.
+              Join MedGuard AI and make medicine
+              verification faster, smarter, and more
+              accessible.
             </p>
+
+            {/* Trust points */}
 
             <ul className="signup-branding__trust-list">
               <li>✓ AI-Powered Verification</li>
@@ -191,212 +392,444 @@ export default function SignUp() {
           </div>
         </motion.aside>
 
-        {/* ---------------- Sign up form side ---------------- */}
+        {/* =================================================
+            SIGNUP FORM
+        ================================================== */}
+
         <div className="signup-form-side">
-          <Link to="/" className="signup-back-link">
-            <HiOutlineArrowLeft aria-hidden="true" />
+
+          {/* Back to Home */}
+
+          <Link
+            to="/"
+            className="signup-back-link"
+          >
+            <HiOutlineArrowLeft
+              aria-hidden="true"
+            />
+
             Back to Home
           </Link>
 
           <motion.div
             className="signup-card"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.05 }}
+            initial={{
+              opacity: 0,
+              y: 14,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              duration: 0.4,
+              delay: 0.05,
+            }}
           >
             <AnimatePresence mode="wait">
+
+              {/* =================================================
+                  SUCCESS
+              ================================================== */}
+
               {isSuccess ? (
                 <motion.div
                   key="success"
                   className="signup-success"
-                  initial={{ opacity: 0, scale: 0.97 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3 }}
+                  initial={{
+                    opacity: 0,
+                    scale: 0.97,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    scale: 1,
+                  }}
+                  transition={{
+                    duration: 0.3,
+                  }}
                 >
-                  <HiOutlineCheckCircle className="signup-success__icon" aria-hidden="true" />
-                  <h2 className="signup-success__title">Account created successfully!</h2>
-                  <p className="signup-success__text">Taking you to your dashboard&hellip;</p>
+                  <HiOutlineCheckCircle
+                    className="signup-success__icon"
+                    aria-hidden="true"
+                  />
+
+                  <h2 className="signup-success__title">
+                    Account created successfully!
+                  </h2>
+
+                  <p className="signup-success__text">
+                    {from === "/verify"
+                      ? "Taking you to medicine verification..."
+                      : "Taking you to your dashboard..."}
+                  </p>
                 </motion.div>
               ) : (
-                <motion.div key="form" initial={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <h2 className="signup-card__title">Create Your Account</h2>
+
+                /* =================================================
+                   FORM
+                ================================================== */
+
+                <motion.div
+                  key="form"
+                  initial={{
+                    opacity: 1,
+                  }}
+                  exit={{
+                    opacity: 0,
+                  }}
+                >
+                  <h2 className="signup-card__title">
+                    Create Your Account
+                  </h2>
+
                   <p className="signup-card__subtitle">
-                    Join MedGuard AI to start verifying medicines.
+                    Join MedGuard AI to start verifying
+                    medicines.
                   </p>
+
+                  {/* =================================================
+                     ERROR
+                  ================================================== */}
 
                   <AnimatePresence>
                     {formError && (
                       <motion.p
                         className="signup-error"
                         role="alert"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
+                        initial={{
+                          opacity: 0,
+                          height: 0,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          height: "auto",
+                        }}
+                        exit={{
+                          opacity: 0,
+                          height: 0,
+                        }}
+                        transition={{
+                          duration: 0.2,
+                        }}
                       >
                         {formError}
                       </motion.p>
                     )}
                   </AnimatePresence>
 
-                  <form onSubmit={handleSubmit} noValidate>
-                    {/* Full name */}
+                  <form
+                    onSubmit={handleSubmit}
+                    noValidate
+                  >
+
+                    {/* =================================================
+                        FULL NAME
+                    ================================================== */}
+
                     <div className="form-field">
-                      <label htmlFor="signup-name">Full Name</label>
-                      <div className={`input-wrap ${nameError ? "input-wrap--error" : ""}`}>
-                        <HiOutlineUser className="input-wrap__icon" aria-hidden="true" />
+                      <label htmlFor="signup-name">
+                        Full Name
+                      </label>
+
+                      <div
+                        className={`input-wrap ${
+                          nameError
+                            ? "input-wrap--error"
+                            : ""
+                        }`}
+                      >
+                        <HiOutlineUser
+                          className="input-wrap__icon"
+                          aria-hidden="true"
+                        />
+
                         <input
                           id="signup-name"
                           type="text"
                           value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          onBlur={() => handleBlur("name")}
+                          onChange={(e) =>
+                            setName(e.target.value)
+                          }
+                          onBlur={() =>
+                            handleBlur("name")
+                          }
                           placeholder="Enter your full name"
                           autoComplete="name"
-                          aria-invalid={Boolean(nameError)}
-                          aria-describedby={nameError ? "signup-name-error" : undefined}
+                          aria-invalid={Boolean(
+                            nameError
+                          )}
                         />
                       </div>
+
                       {nameError && (
-                        <p className="field-error" id="signup-name-error">
+                        <p className="field-error">
                           {nameError}
                         </p>
                       )}
                     </div>
 
-                    {/* Email */}
+                    {/* =================================================
+                        EMAIL
+                    ================================================== */}
+
                     <div className="form-field">
-                      <label htmlFor="signup-email">Email Address</label>
-                      <div className={`input-wrap ${emailError ? "input-wrap--error" : ""}`}>
-                        <HiOutlineMail className="input-wrap__icon" aria-hidden="true" />
+                      <label htmlFor="signup-email">
+                        Email Address
+                      </label>
+
+                      <div
+                        className={`input-wrap ${
+                          emailError
+                            ? "input-wrap--error"
+                            : ""
+                        }`}
+                      >
+                        <HiOutlineMail
+                          className="input-wrap__icon"
+                          aria-hidden="true"
+                        />
+
                         <input
                           id="signup-email"
                           type="email"
                           value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          onBlur={() => handleBlur("email")}
+                          onChange={(e) =>
+                            setEmail(e.target.value)
+                          }
+                          onBlur={() =>
+                            handleBlur("email")
+                          }
                           placeholder="Enter your email"
                           autoComplete="email"
-                          aria-invalid={Boolean(emailError)}
-                          aria-describedby={emailError ? "signup-email-error" : undefined}
+                          aria-invalid={Boolean(
+                            emailError
+                          )}
                         />
                       </div>
+
                       {emailError && (
-                        <p className="field-error" id="signup-email-error">
+                        <p className="field-error">
                           {emailError}
                         </p>
                       )}
                     </div>
 
-                    {/* Password */}
+                    {/* =================================================
+                        PASSWORD
+                    ================================================== */}
+
                     <div className="form-field">
-                      <label htmlFor="signup-password">Password</label>
-                      <div className={`input-wrap ${passwordError ? "input-wrap--error" : ""}`}>
-                        <HiOutlineLockClosed className="input-wrap__icon" aria-hidden="true" />
+                      <label htmlFor="signup-password">
+                        Password
+                      </label>
+
+                      <div
+                        className={`input-wrap ${
+                          passwordError
+                            ? "input-wrap--error"
+                            : ""
+                        }`}
+                      >
+                        <HiOutlineLockClosed
+                          className="input-wrap__icon"
+                          aria-hidden="true"
+                        />
+
                         <input
                           id="signup-password"
-                          type={showPassword ? "text" : "password"}
+                          type={
+                            showPassword
+                              ? "text"
+                              : "password"
+                          }
                           value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          onBlur={() => handleBlur("password")}
+                          onChange={(e) =>
+                            setPassword(e.target.value)
+                          }
+                          onBlur={() =>
+                            handleBlur("password")
+                          }
                           placeholder="Create a password"
                           autoComplete="new-password"
-                          aria-invalid={Boolean(passwordError)}
-                          aria-describedby="signup-password-strength signup-password-error"
+                          aria-invalid={Boolean(
+                            passwordError
+                          )}
                         />
+
                         <button
                           type="button"
                           className="input-wrap__toggle"
-                          onClick={() => setShowPassword((v) => !v)}
-                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          onClick={() =>
+                            setShowPassword(
+                              (v) => !v
+                            )
+                          }
+                          aria-label={
+                            showPassword
+                              ? "Hide password"
+                              : "Show password"
+                          }
                         >
                           {showPassword ? (
-                            <HiOutlineEyeOff aria-hidden="true" />
+                            <HiOutlineEyeOff />
                           ) : (
-                            <HiOutlineEye aria-hidden="true" />
+                            <HiOutlineEye />
                           )}
                         </button>
                       </div>
 
+                      {/* Password Strength */}
+
                       {password && (
-                        <div className="password-strength" id="signup-password-strength">
+                        <div className="password-strength">
                           <div className="password-strength__bar">
                             <span
                               className={`password-strength__fill password-strength__fill--${strength.score}`}
                             />
                           </div>
-                          <span className={`password-strength__label password-strength__label--${strength.score}`}>
+
+                          <span
+                            className={`password-strength__label password-strength__label--${strength.score}`}
+                          >
                             {strength.label}
                           </span>
                         </div>
                       )}
 
                       <p className="password-hint">
-                        Use 8+ characters with an uppercase letter, a lowercase letter, and a number.
+                        Use 8+ characters with an uppercase
+                        letter, a lowercase letter, and a number.
                       </p>
 
                       {passwordError && (
-                        <p className="field-error" id="signup-password-error">
+                        <p className="field-error">
                           {passwordError}
                         </p>
                       )}
                     </div>
 
-                    {/* Confirm password */}
+                    {/* =================================================
+                        CONFIRM PASSWORD
+                    ================================================== */}
+
                     <div className="form-field">
-                      <label htmlFor="signup-confirm-password">Confirm Password</label>
-                      <div className={`input-wrap ${confirmPasswordError ? "input-wrap--error" : ""}`}>
-                        <HiOutlineLockClosed className="input-wrap__icon" aria-hidden="true" />
+                      <label htmlFor="signup-confirm-password">
+                        Confirm Password
+                      </label>
+
+                      <div
+                        className={`input-wrap ${
+                          confirmPasswordError
+                            ? "input-wrap--error"
+                            : ""
+                        }`}
+                      >
+                        <HiOutlineLockClosed
+                          className="input-wrap__icon"
+                          aria-hidden="true"
+                        />
+
                         <input
                           id="signup-confirm-password"
-                          type={showConfirmPassword ? "text" : "password"}
+                          type={
+                            showConfirmPassword
+                              ? "text"
+                              : "password"
+                          }
                           value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          onBlur={() => handleBlur("confirmPassword")}
+                          onChange={(e) =>
+                            setConfirmPassword(
+                              e.target.value
+                            )
+                          }
+                          onBlur={() =>
+                            handleBlur(
+                              "confirmPassword"
+                            )
+                          }
                           placeholder="Confirm your password"
                           autoComplete="new-password"
-                          aria-invalid={Boolean(confirmPasswordError)}
-                          aria-describedby={
-                            confirmPasswordError ? "signup-confirm-password-error" : undefined
-                          }
+                          aria-invalid={Boolean(
+                            confirmPasswordError
+                          )}
                         />
+
                         <button
                           type="button"
                           className="input-wrap__toggle"
-                          onClick={() => setShowConfirmPassword((v) => !v)}
-                          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                          onClick={() =>
+                            setShowConfirmPassword(
+                              (v) => !v
+                            )
+                          }
+                          aria-label={
+                            showConfirmPassword
+                              ? "Hide password"
+                              : "Show password"
+                          }
                         >
                           {showConfirmPassword ? (
-                            <HiOutlineEyeOff aria-hidden="true" />
+                            <HiOutlineEyeOff />
                           ) : (
-                            <HiOutlineEye aria-hidden="true" />
+                            <HiOutlineEye />
                           )}
                         </button>
                       </div>
+
                       {confirmPasswordError && (
-                        <p className="field-error" id="signup-confirm-password-error">
+                        <p className="field-error">
                           {confirmPasswordError}
                         </p>
                       )}
                     </div>
 
-                    {/* Terms */}
+                    {/* =================================================
+                        TERMS
+                    ================================================== */}
+
                     <label className="terms-label">
                       <input
                         type="checkbox"
                         checked={agreedToTerms}
-                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        onChange={(e) =>
+                          setAgreedToTerms(
+                            e.target.checked
+                          )
+                        }
                       />
+
                       <span>
-                        I agree to the <Link to="/terms">Terms of Service</Link> and{" "}
-                        <Link to="/privacy">Privacy Policy</Link>.
+                        I agree to the{" "}
+                        <Link to="/terms">
+                          Terms of Service
+                        </Link>{" "}
+                        and{" "}
+                        <Link to="/privacy">
+                          Privacy Policy
+                        </Link>
+                        .
                       </span>
                     </label>
 
-                    <button type="submit" className="btn-signup" disabled={!isFormValid || isSubmitting}>
+                    {/* =================================================
+                        CREATE ACCOUNT
+                    ================================================== */}
+
+                    <button
+                      type="submit"
+                      className="btn-signup"
+                      disabled={
+                        !isFormValid ||
+                        isSubmitting
+                      }
+                    >
                       {isSubmitting ? (
                         <>
-                          <span className="btn-signup__spinner" aria-hidden="true" />
+                          <span
+                            className="btn-signup__spinner"
+                            aria-hidden="true"
+                          />
+
                           Creating Account...
                         </>
                       ) : (
@@ -405,16 +838,31 @@ export default function SignUp() {
                     </button>
                   </form>
 
+                  {/* Login */}
+
                   <p className="signup-login-note">
-                    Already have an account? <Link to="/login">Login</Link>
+                    Already have an account?{" "}
+                    <Link
+                      to="/login"
+                      state={location.state}
+                    >
+                      Login
+                    </Link>
                   </p>
 
+                  {/* Security */}
+
                   <p className="signup-trust-note">
-                    <HiOutlineShieldCheck aria-hidden="true" />
-                    Your account information is handled securely.
+                    <HiOutlineShieldCheck
+                      aria-hidden="true"
+                    />
+
+                    Your account information is handled
+                    securely.
                   </p>
                 </motion.div>
               )}
+
             </AnimatePresence>
           </motion.div>
         </div>

@@ -45,8 +45,8 @@ export default function Settings() {
               <form onSubmit={saveProfile} className="settings-form">
                 <label>Full Name<input value={name} onChange={e=>setName(e.target.value)} /></label>
                 <label>Email Address<input value={user.email} disabled /></label>
-                <label>Phone Number<input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Optional" /></label>
-                <label>Location<input value={location} onChange={e=>setLocation(e.target.value)} placeholder="Optional" /></label>
+                <label>Phone Number<input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Enter Phone number" required /></label>
+                <label>Location<input value={location} onChange={e=>setLocation(e.target.value)} placeholder="Enter your Location" required /></label>
                 <button className="mg-primary-btn" type="submit">{saved ? "Saved ✓" : "Save Changes"}</button>
               </form>
             </section>
