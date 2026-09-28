@@ -22,12 +22,13 @@ import {
 
 import { motion } from "framer-motion";
 
-import logo from "../../assets/logo.png";
+import Footer from "../../components/Footer";
+
 import "./dashboard.css";
 
 
 /* --------------------------------------------------------------------- */
-/* Static config                                                         */
+/* Static configuration                                                  */
 /* --------------------------------------------------------------------- */
 
 const NAV_ITEMS = [
@@ -71,7 +72,8 @@ const NAV_ITEMS = [
 
 
 /* --------------------------------------------------------------------- */
-/* Demo data                                                             */
+/* Demo dashboard data                                                   */
+/* Replace with backend API data later                                   */
 /* --------------------------------------------------------------------- */
 
 const STATS = [
@@ -191,11 +193,13 @@ const BADGE_CONFIG = {
     icon: "✓",
     className: "mg-badge--genuine",
   },
+
   flagged: {
     label: "Flagged",
     icon: "⚠",
     className: "mg-badge--flagged",
   },
+
   suspicious: {
     label: "Suspicious",
     icon: "⚠",
@@ -205,32 +209,40 @@ const BADGE_CONFIG = {
 
 
 /* --------------------------------------------------------------------- */
-/* Small presentational helpers                                          */
+/* Helper functions                                                       */
 /* --------------------------------------------------------------------- */
 
 function initialsFromName(name) {
-  if (!name) return "U";
+  if (!name) {
+    return "U";
+  }
 
-  const parts = name
-    .trim()
-    .split(" ")
-    .filter(Boolean);
+  const parts = name.trim().split(" ").filter(Boolean);
 
   if (parts.length === 1) {
     return parts[0].slice(0, 2).toUpperCase();
   }
 
-  return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (
+    parts[0][0] +
+    parts[1][0]
+  ).toUpperCase();
 }
 
 
 function ResultBadge({ result }) {
   const config =
-    BADGE_CONFIG[result] || BADGE_CONFIG.suspicious;
+    BADGE_CONFIG[result] ||
+    BADGE_CONFIG.suspicious;
 
   return (
-    <span className={`mg-badge ${config.className}`}>
-      <span aria-hidden="true">{config.icon}</span>
+    <span
+      className={`mg-badge ${config.className}`}
+    >
+      <span aria-hidden="true">
+        {config.icon}
+      </span>
+
       {config.label}
     </span>
   );
@@ -239,9 +251,13 @@ function ResultBadge({ result }) {
 
 function AccuracyRing({ percent }) {
   const radius = 30;
-  const circumference = 2 * Math.PI * radius;
+
+  const circumference =
+    2 * Math.PI * radius;
+
   const offset =
-    circumference - (percent / 100) * circumference;
+    circumference -
+    (percent / 100) * circumference;
 
   return (
     <svg
@@ -279,107 +295,260 @@ function AccuracyRing({ percent }) {
 
 
 /* --------------------------------------------------------------------- */
-/* Main component                                                        */
+/* Dashboard                                                             */
 /* --------------------------------------------------------------------- */
 
 export default function Dashboard() {
+
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
+
+  const [sidebarOpen, setSidebarOpen] =
+    useState(false);
+
+  const [profileOpen, setProfileOpen] =
+    useState(false);
+
   const [notificationsOpen, setNotificationsOpen] =
     useState(false);
 
+  const [checkingAuth, setCheckingAuth] =
+    useState(true);
+
   const profileRef = useRef(null);
+
   const notificationsRef = useRef(null);
 
 
   /* ------------------------------------------------------------------- */
-  /* Protected-route check                                               */
+  /* JWT authentication check                                            */
   /* ------------------------------------------------------------------- */
 
   useEffect(() => {
-    try {
-      const stored = JSON.parse(
-        localStorage.getItem("user") || "null"
-      );
 
-      if (!stored?.isLoggedIn) {
-        navigate("/login");
+    async function verifyUser() {
+
+      const token =
+        localStorage.getItem("access_token");
+
+      const storedUser =
+        JSON.parse(
+          localStorage.getItem("user") || "null"
+        );
+
+
+      if (!token) {
+
+        navigate("/login", {
+          replace: true,
+        });
+
         return;
       }
 
-      setUser(stored);
-    } catch (error) {
-      console.error("Unable to read logged-in user:", error);
-      navigate("/login");
+
+      try {
+
+        const response = await fetch(
+          "http://127.0.0.1:8000/auth/me",
+          {
+            method: "GET",
+
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+
+        if (!response.ok) {
+
+          localStorage.removeItem(
+            "access_token"
+          );
+
+          localStorage.removeItem(
+            "token_type"
+          );
+
+          localStorage.removeItem(
+            "user"
+          );
+
+          navigate("/login", {
+            replace: true,
+          });
+
+          return;
+        }
+
+
+        const backendUser =
+          await response.json();
+
+
+        const authenticatedUser = {
+
+          user_id:
+            backendUser.user_id,
+
+          name:
+            storedUser?.name ||
+            "User",
+
+          email:
+            backendUser.email ||
+            storedUser?.email ||
+            "",
+
+          isLoggedIn: true,
+        };
+
+
+        setUser(authenticatedUser);
+
+
+        localStorage.setItem(
+          "user",
+          JSON.stringify(
+            authenticatedUser
+          )
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Authentication error:",
+          error
+        );
+
+
+        localStorage.removeItem(
+          "access_token"
+        );
+
+        localStorage.removeItem(
+          "token_type"
+        );
+
+        localStorage.removeItem(
+          "user"
+        );
+
+
+        navigate("/login", {
+          replace: true,
+        });
+
+      } finally {
+
+        setCheckingAuth(false);
+
+      }
     }
+
+
+    verifyUser();
+
   }, [navigate]);
 
 
   /* ------------------------------------------------------------------- */
-  /* Close profile / notification menus when clicking outside             */
+  /* Close dropdowns when clicking outside                               */
   /* ------------------------------------------------------------------- */
 
   useEffect(() => {
+
     function handleClickOutside(event) {
+
       if (
         profileRef.current &&
-        !profileRef.current.contains(event.target)
+        !profileRef.current.contains(
+          event.target
+        )
       ) {
+
         setProfileOpen(false);
+
       }
+
 
       if (
         notificationsRef.current &&
-        !notificationsRef.current.contains(event.target)
+        !notificationsRef.current.contains(
+          event.target
+        )
       ) {
+
         setNotificationsOpen(false);
+
       }
     }
+
 
     document.addEventListener(
       "mousedown",
       handleClickOutside
     );
 
+
     return () => {
+
       document.removeEventListener(
         "mousedown",
         handleClickOutside
       );
+
     };
+
   }, []);
 
 
   /* ------------------------------------------------------------------- */
-  /* User information                                                     */
+  /* User information                                                    */
   /* ------------------------------------------------------------------- */
 
-  const displayName = user?.name || "User";
+  const displayName =
+    user?.name || "User";
 
-  const initials = useMemo(
-    () => initialsFromName(displayName),
-    [displayName]
-  );
+
+  const initials =
+    useMemo(
+      () =>
+        initialsFromName(
+          displayName
+        ),
+      [displayName]
+    );
+
 
   const hasHistory =
     RECENT_VERIFICATIONS.length > 0;
 
 
   /* ------------------------------------------------------------------- */
-  /* Logout                                                               */
+  /* Logout                                                              */
   /* ------------------------------------------------------------------- */
 
   function handleLogout() {
-    localStorage.removeItem("user");
 
-    window.dispatchEvent(
-      new Event("authChanged")
+    localStorage.removeItem(
+      "access_token"
     );
 
-    navigate("/");
+    localStorage.removeItem(
+      "token_type"
+    );
+
+    localStorage.removeItem(
+      "user"
+    );
+
+    navigate("/login", {
+      replace: true,
+    });
   }
 
 
@@ -388,33 +557,67 @@ export default function Dashboard() {
   /* ------------------------------------------------------------------- */
 
   function goTo(path) {
+
     setSidebarOpen(false);
+
     setProfileOpen(false);
+
     setNotificationsOpen(false);
 
     navigate(path);
   }
 
 
+  /* ------------------------------------------------------------------- */
+  /* Authentication loading screen                                       */
+  /* ------------------------------------------------------------------- */
+
+  if (checkingAuth) {
+
+    return (
+      <div className="mg-auth-loading">
+
+        <div className="mg-auth-loading__content">
+
+          <span className="mg-auth-loading__icon">
+            <HiOutlineShieldCheck />
+          </span>
+
+          <p>
+            Checking authentication...
+          </p>
+
+        </div>
+
+      </div>
+    );
+  }
+
+
+  /* ------------------------------------------------------------------- */
+  /* Dashboard UI                                                         */
+  /* ------------------------------------------------------------------- */
+
   return (
+
     <div className="mg-dashboard">
 
-      {/* =============================================================== */}
-      {/* Sidebar Overlay                                                 */}
-      {/* =============================================================== */}
-
       {sidebarOpen && (
+
         <div
           className="mg-sidebar-overlay"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() =>
+            setSidebarOpen(false)
+          }
           aria-hidden="true"
         />
+
       )}
 
 
-      {/* =============================================================== */}
-      {/* Sidebar                                                          */}
-      {/* =============================================================== */}
+      {/* ============================================================= */}
+      {/* Sidebar                                                        */}
+      {/* ============================================================= */}
 
       <aside
         className={`mg-sidebar ${
@@ -423,78 +626,84 @@ export default function Dashboard() {
         aria-label="Primary navigation"
       >
 
-        {/* Mobile close button */}
-
         <button
           type="button"
           className="mg-sidebar__close"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() =>
+            setSidebarOpen(false)
+          }
           aria-label="Close menu"
         >
           <HiOutlineX />
         </button>
 
 
-        {/* ------------------------------------------------------------- */}
-        {/* Dashboard Brand / Logo                                         */}
-        {/* ------------------------------------------------------------- */}
+        {/* Brand */}
 
         <div className="mg-sidebar__brand">
 
-          <img
-            src={logo}
-            alt="MedGuard AI"
-            className="mg-sidebar__brand-logo"
-          />
+          <span
+            className="mg-sidebar__brand-mark"
+            aria-hidden="true"
+          >
+            <HiOutlineShieldCheck />
+          </span>
 
           <span className="mg-sidebar__brand-name">
-            MedGuard <em>AI</em>
+            MedGuard AI
           </span>
 
         </div>
 
 
-        {/* ------------------------------------------------------------- */}
-        {/* Navigation                                                     */}
-        {/* ------------------------------------------------------------- */}
+        {/* Navigation */}
 
         <nav className="mg-sidebar__nav">
 
           {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
 
-            /*
-              Dashboard is active when we are on /dashboard.
-              Other pages can use the same component structure later.
-            */
+            const Icon = item.icon;
 
             const isActive =
               item.key === "dashboard";
 
+
             return (
+
               <button
                 key={item.key}
                 type="button"
                 className={`mg-nav-item ${
-                  isActive ? "is-active" : ""
+                  isActive
+                    ? "is-active"
+                    : ""
                 }`}
-                onClick={() => goTo(item.path)}
+                onClick={() =>
+                  goTo(item.path)
+                }
                 aria-current={
-                  isActive ? "page" : undefined
+                  isActive
+                    ? "page"
+                    : undefined
                 }
               >
-                <Icon aria-hidden="true" />
+
+                <Icon
+                  aria-hidden="true"
+                />
+
                 {item.label}
+
               </button>
+
             );
+
           })}
 
         </nav>
 
 
-        {/* ------------------------------------------------------------- */}
-        {/* Sidebar Footer                                                  */}
-        {/* ------------------------------------------------------------- */}
+        {/* Sidebar logout */}
 
         <div className="mg-sidebar__footer">
 
@@ -503,8 +712,13 @@ export default function Dashboard() {
             className="mg-nav-item mg-nav-item--logout"
             onClick={handleLogout}
           >
-            <HiOutlineLogout aria-hidden="true" />
+
+            <HiOutlineLogout
+              aria-hidden="true"
+            />
+
             Logout
+
           </button>
 
         </div>
@@ -512,26 +726,27 @@ export default function Dashboard() {
       </aside>
 
 
-      {/* =============================================================== */}
-      {/* Main Column                                                      */}
-      {/* =============================================================== */}
+      {/* ============================================================= */}
+      {/* Main column                                                     */}
+      {/* ============================================================= */}
 
       <div className="mg-main">
 
-        {/* ------------------------------------------------------------- */}
-        {/* Header                                                         */}
-        {/* ------------------------------------------------------------- */}
+
+        {/* =========================================================== */}
+        {/* Header                                                       */}
+        {/* =========================================================== */}
 
         <header className="mg-header">
 
           <div className="mg-header__left">
 
-            {/* Mobile menu button */}
-
             <button
               type="button"
               className="mg-header__menu-btn"
-              onClick={() => setSidebarOpen(true)}
+              onClick={() =>
+                setSidebarOpen(true)
+              }
               aria-label="Open menu"
             >
               <HiOutlineMenu />
@@ -544,11 +759,8 @@ export default function Dashboard() {
           </div>
 
 
-          {/* ----------------------------------------------------------- */}
-          {/* Header Right                                                  */}
-          {/* ----------------------------------------------------------- */}
-
           <div className="mg-header__right">
+
 
             {/* Notifications */}
 
@@ -561,72 +773,101 @@ export default function Dashboard() {
                 type="button"
                 className="mg-icon-btn"
                 aria-label="Notifications"
-                aria-expanded={notificationsOpen}
+                aria-expanded={
+                  notificationsOpen
+                }
                 onClick={() =>
                   setNotificationsOpen(
                     (open) => !open
                   )
                 }
               >
+
                 <HiOutlineBell />
 
                 <span
                   className="mg-icon-btn__dot"
                   aria-hidden="true"
                 />
+
               </button>
 
 
               {notificationsOpen && (
+
                 <div className="mg-notifications__dropdown">
 
                   <div className="mg-notifications__head">
-                    <strong>Notifications</strong>
-                    <span>3 new</span>
+
+                    <strong>
+                      Notifications
+                    </strong>
+
+                    <span>
+                      3 new
+                    </span>
+
                   </div>
 
 
                   <div className="mg-notification mg-notification--warning">
-                    <span>⚠️</span>
+
+                    <span>
+                      ⚠️
+                    </span>
 
                     <div>
+
                       <strong>
                         Medicine flagged
                       </strong>
 
                       <p>
-                        XYZ Tablet requires further
-                        verification.
+                        XYZ Tablet requires further verification.
                       </p>
 
-                      <small>Today</small>
+                      <small>
+                        Today
+                      </small>
+
                     </div>
+
                   </div>
 
 
                   <div className="mg-notification mg-notification--success">
-                    <span>✓</span>
+
+                    <span>
+                      ✓
+                    </span>
 
                     <div>
+
                       <strong>
                         Verification completed
                       </strong>
 
                       <p>
-                        Paracetamol was successfully
-                        screened.
+                        Paracetamol was successfully screened.
                       </p>
 
-                      <small>Today</small>
+                      <small>
+                        Today
+                      </small>
+
                     </div>
+
                   </div>
 
 
                   <div className="mg-notification">
 
-                    <span>⏳</span>
+                    <span>
+                      ⏳
+                    </span>
 
                     <div>
+
                       <strong>
                         Expiry reminder
                       </strong>
@@ -635,13 +876,17 @@ export default function Dashboard() {
                         Vitamin D expires in 30 days.
                       </p>
 
-                      <small>Yesterday</small>
+                      <small>
+                        Yesterday
+                      </small>
+
                     </div>
 
                   </div>
 
 
                   <button
+                    type="button"
                     className="mg-notifications__all"
                     onClick={() =>
                       goTo("/settings")
@@ -651,6 +896,7 @@ export default function Dashboard() {
                   </button>
 
                 </div>
+
               )}
 
             </div>
@@ -672,7 +918,9 @@ export default function Dashboard() {
                   )
                 }
                 aria-haspopup="menu"
-                aria-expanded={profileOpen}
+                aria-expanded={
+                  profileOpen
+                }
               >
 
                 <span
@@ -690,10 +938,13 @@ export default function Dashboard() {
                   </span>
 
                   <span className="mg-profile__badge">
+
                     <HiOutlineCheckCircle
                       aria-hidden="true"
                     />
+
                     Verified User
+
                   </span>
 
                 </span>
@@ -707,9 +958,8 @@ export default function Dashboard() {
               </button>
 
 
-              {/* Profile Dropdown */}
-
               {profileOpen && (
+
                 <div
                   className="mg-profile__dropdown"
                   role="menu"
@@ -723,10 +973,13 @@ export default function Dashboard() {
                       goTo("/settings")
                     }
                   >
+
                     <HiOutlineUser
                       aria-hidden="true"
                     />
+
                     Profile
+
                   </button>
 
 
@@ -738,10 +991,13 @@ export default function Dashboard() {
                       goTo("/settings")
                     }
                   >
+
                     <HiOutlineCog
                       aria-hidden="true"
                     />
+
                     Settings
+
                   </button>
 
 
@@ -754,13 +1010,17 @@ export default function Dashboard() {
                     role="menuitem"
                     onClick={handleLogout}
                   >
+
                     <HiOutlineLogout
                       aria-hidden="true"
                     />
+
                     Logout
+
                   </button>
 
                 </div>
+
               )}
 
             </div>
@@ -770,9 +1030,9 @@ export default function Dashboard() {
         </header>
 
 
-        {/* ============================================================= */}
-        {/* Main Dashboard Content                                         */}
-        {/* ============================================================= */}
+        {/* =========================================================== */}
+        {/* Main dashboard content                                       */}
+        {/* =========================================================== */}
 
         <motion.main
           className="mg-content"
@@ -790,9 +1050,10 @@ export default function Dashboard() {
           }}
         >
 
-          {/* ----------------------------------------------------------- */}
-          {/* Welcome                                                       */}
-          {/* ----------------------------------------------------------- */}
+
+          {/* --------------------------------------------------------- */}
+          {/* Welcome                                                    */}
+          {/* --------------------------------------------------------- */}
 
           <section className="mg-welcome">
 
@@ -808,9 +1069,9 @@ export default function Dashboard() {
           </section>
 
 
-          {/* ----------------------------------------------------------- */}
-          {/* Stats                                                         */}
-          {/* ----------------------------------------------------------- */}
+          {/* --------------------------------------------------------- */}
+          {/* Stats                                                      */}
+          {/* --------------------------------------------------------- */}
 
           <section
             className="mg-stats"
@@ -822,6 +1083,7 @@ export default function Dashboard() {
               const Icon = stat.icon;
 
               return (
+
                 <motion.div
                   key={stat.key}
                   className="mg-stat-card"
@@ -846,6 +1108,7 @@ export default function Dashboard() {
                     <Icon />
                   </span>
 
+
                   <span>
 
                     <span className="mg-stat-card__value">
@@ -859,19 +1122,22 @@ export default function Dashboard() {
                   </span>
 
                 </motion.div>
+
               );
+
             })}
 
           </section>
 
 
-          {/* ----------------------------------------------------------- */}
-          {/* Verify + Insight                                              */}
-          {/* ----------------------------------------------------------- */}
+          {/* --------------------------------------------------------- */}
+          {/* Verify + Insight                                           */}
+          {/* --------------------------------------------------------- */}
 
           <section className="mg-grid-2">
 
-            {/* Verify Card */}
+
+            {/* Verify card */}
 
             <div className="mg-verify-card">
 
@@ -889,15 +1155,20 @@ export default function Dashboard() {
               <div className="mg-verify-card__top">
 
                 <span className="mg-verify-card__eyebrow">
+
                   <HiOutlineShieldCheck
                     aria-hidden="true"
                   />
+
                   AI-assisted screening
+
                 </span>
+
 
                 <h3 className="mg-verify-card__title">
                   Verify a Medicine
                 </h3>
+
 
                 <p className="mg-verify-card__subtitle">
                   Check whether a medicine is genuine
@@ -917,10 +1188,13 @@ export default function Dashboard() {
                     goTo("/verify")
                   }
                 >
+
                   <HiOutlineCamera
                     aria-hidden="true"
                   />
+
                   Use Camera
+
                 </button>
 
 
@@ -931,10 +1205,13 @@ export default function Dashboard() {
                     goTo("/verify")
                   }
                 >
+
                   <HiOutlineUpload
                     aria-hidden="true"
                   />
+
                   Upload Image
+
                 </button>
 
 
@@ -953,7 +1230,7 @@ export default function Dashboard() {
             </div>
 
 
-            {/* Insight Card */}
+            {/* Insight card */}
 
             <div className="mg-insight-card">
 
@@ -964,7 +1241,10 @@ export default function Dashboard() {
 
               <div className="mg-insight-ring">
 
-                <AccuracyRing percent={87.5} />
+                <AccuracyRing
+                  percent={87.5}
+                />
+
 
                 <div>
 
@@ -972,9 +1252,10 @@ export default function Dashboard() {
                     87.5% Genuine
                   </div>
 
+
                   <p className="mg-insight-ring__caption">
-                    Most of your recent medicines have
-                    been verified as genuine.
+                    Most of your recent medicines
+                    have been verified as genuine.
                   </p>
 
                 </div>
@@ -983,8 +1264,8 @@ export default function Dashboard() {
 
 
               <p className="mg-insight-card__note">
-                AI-assisted screening result. Results
-                should be reviewed when necessary.
+                AI-assisted screening result.
+                Results should be reviewed when necessary.
               </p>
 
             </div>
@@ -992,9 +1273,9 @@ export default function Dashboard() {
           </section>
 
 
-          {/* ----------------------------------------------------------- */}
-          {/* Recent Verification                                           */}
-          {/* ----------------------------------------------------------- */}
+          {/* --------------------------------------------------------- */}
+          {/* Recent verification                                       */}
+          {/* --------------------------------------------------------- */}
 
           <section className="mg-section">
 
@@ -1003,6 +1284,7 @@ export default function Dashboard() {
               <h3 className="mg-section__title">
                 Recent Verification
               </h3>
+
 
               <button
                 type="button"
@@ -1024,7 +1306,9 @@ export default function Dashboard() {
                 <table className="mg-table">
 
                   <thead>
+
                     <tr>
+
                       <th scope="col">
                         Medicine
                       </th>
@@ -1040,7 +1324,9 @@ export default function Dashboard() {
                       <th scope="col">
                         Date
                       </th>
+
                     </tr>
+
                   </thead>
 
 
@@ -1048,11 +1334,13 @@ export default function Dashboard() {
 
                     {RECENT_VERIFICATIONS.map(
                       (row) => (
+
                         <tr key={row.id}>
 
                           <td className="mg-table__medicine">
                             {row.medicine}
                           </td>
+
 
                           <td>
                             <ResultBadge
@@ -1060,15 +1348,18 @@ export default function Dashboard() {
                             />
                           </td>
 
+
                           <td className="mg-table__confidence">
                             {row.confidence}%
                           </td>
+
 
                           <td>
                             {row.date}
                           </td>
 
                         </tr>
+
                       )
                     )}
 
@@ -1087,14 +1378,17 @@ export default function Dashboard() {
                     <HiOutlineClipboardList />
                   </span>
 
+
                   <p className="mg-empty-state__title">
                     No verification history yet.
                   </p>
+
 
                   <p className="mg-empty-state__subtitle">
                     Verify your first medicine to see
                     results here.
                   </p>
+
 
                   <button
                     type="button"
@@ -1115,9 +1409,9 @@ export default function Dashboard() {
           </section>
 
 
-          {/* ----------------------------------------------------------- */}
-          {/* Quick Actions                                                 */}
-          {/* ----------------------------------------------------------- */}
+          {/* --------------------------------------------------------- */}
+          {/* Quick actions                                              */}
+          {/* --------------------------------------------------------- */}
 
           <section className="mg-section">
 
@@ -1132,52 +1426,60 @@ export default function Dashboard() {
 
             <div className="mg-quick-actions">
 
-              {QUICK_ACTIONS.map((action) => {
+              {QUICK_ACTIONS.map(
+                (action) => {
 
-                const Icon = action.icon;
+                  const Icon =
+                    action.icon;
 
-                return (
-                  <button
-                    key={action.key}
-                    type="button"
-                    className="mg-quick-action"
-                    onClick={() =>
-                      goTo(action.path)
-                    }
-                  >
 
-                    <span
-                      className="mg-quick-action__icon"
-                      aria-hidden="true"
+                  return (
+
+                    <button
+                      key={action.key}
+                      type="button"
+                      className="mg-quick-action"
+                      onClick={() =>
+                        goTo(action.path)
+                      }
                     >
-                      <Icon />
-                    </span>
+
+                      <span
+                        className="mg-quick-action__icon"
+                        aria-hidden="true"
+                      >
+                        <Icon />
+                      </span>
 
 
-                    <span>
+                      <span>
 
-                      <p className="mg-quick-action__title">
-                        {action.title}
-                      </p>
+                        <p className="mg-quick-action__title">
+                          {action.title}
+                        </p>
 
-                      <p className="mg-quick-action__desc">
-                        {action.desc}
-                      </p>
 
-                    </span>
+                        <p className="mg-quick-action__desc">
+                          {action.desc}
+                        </p>
 
-                  </button>
-                );
-              })}
+                      </span>
+
+                    </button>
+
+                  );
+
+                }
+              )}
 
             </div>
 
           </section>
 
 
-          {/* ----------------------------------------------------------- */}
-          {/* Recent Activity                                               */}
-          {/* ----------------------------------------------------------- */}
+          {/* --------------------------------------------------------- */}
+          {/* Recent activity                                            */}
+          {/* --------------------------------------------------------- */}
 
           <section className="mg-section">
 
@@ -1232,6 +1534,7 @@ export default function Dashboard() {
                           {activity.text}
                         </p>
 
+
                         <p className="mg-timeline__time">
                           {activity.time}
                         </p>
@@ -1250,9 +1553,9 @@ export default function Dashboard() {
           </section>
 
 
-          {/* ----------------------------------------------------------- */}
-          {/* Trust Indicator                                                */}
-          {/* ----------------------------------------------------------- */}
+          {/* --------------------------------------------------------- */}
+          {/* Trust indicator                                            */}
+          {/* --------------------------------------------------------- */}
 
           <div className="mg-trust">
 
@@ -1270,17 +1573,26 @@ export default function Dashboard() {
                 MedGuard AI Verification
               </p>
 
+
               <p className="mg-trust__desc">
-                AI-assisted medicine screening. Results
-                should be reviewed when necessary and do
-                not guarantee authenticity.
+                AI-assisted medicine screening.
+                Results should be reviewed when necessary
+                and do not guarantee authenticity.
               </p>
 
             </div>
 
           </div>
 
+
         </motion.main>
+
+
+        {/* =========================================================== */}
+        {/* Footer                                                       */}
+        {/* =========================================================== */}
+
+        <Footer />
 
       </div>
 

@@ -13,26 +13,18 @@ const LINK_COLS = [
       { label: "How It Works", href: "/#how-it-works" },
     ],
   },
-  /*
-  {
-    title: "Resources",
-    links: [
-      { label: "Documentation", href: "#" },
-      { label: "API Reference", href: "#" },
-      { label: "Report Counterfeit", href: "#" },
-      { label: "Blog", href: "#" },
-    ],
-  },
-  */
 ];
 
 export default function Footer() {
   return (
     <footer className="footer">
       <div className="container footer__top">
+
         <div className="footer__brand">
+
           <a href="/" className="navbar__logo">
             <img src={logo} alt="MedGuard AI logo" />
+
             <span>
               MedGuard <em>AI</em>
             </span>
@@ -44,6 +36,7 @@ export default function Footer() {
           </p>
 
           <div className="footer__socials">
+
             <a href="#github" aria-label="GitHub">
               <FaGithub size={18} />
             </a>
@@ -58,30 +51,41 @@ export default function Footer() {
             >
               <HiOutlineMail size={18} />
             </a>
+
           </div>
         </div>
 
         {LINK_COLS.map((col) => (
           <div className="footer__col" key={col.title}>
+
             <h4>{col.title}</h4>
 
             <ul>
-              {col.links.map((l) => (
-                <li key={l.label}>
-                  <a href={l.href}>{l.label}</a>
+              {col.links.map((link) => (
+                <li key={link.label}>
+                  <a href={link.href}>
+                    {link.label}
+                  </a>
                 </li>
               ))}
             </ul>
+
           </div>
         ))}
+
       </div>
 
       <div className="container footer__bottom">
+
         <p>
-          © {new Date().getFullYear()} MedGuard AI. All rights reserved.
+          © {new Date().getFullYear()} MedGuard AI.
+          All rights reserved.
         </p>
 
-        <p>Verify. Trust. Protect.</p>
+        <p>
+          Verify. Trust. Protect.
+        </p>
+
       </div>
     </footer>
   );

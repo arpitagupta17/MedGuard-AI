@@ -8,5 +8,28 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
-})
 
+  server: {
+    proxy: {
+      "/auth": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+
+      "/medicines": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+
+      "/verification": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+
+      "/reports": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+    },
+  },
+})

@@ -1,16 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import "./verify.css";
 
 // ---------------------------------------------------------------------------
-// MOCK VERIFICATION — placeholder only, not a real AI/backend call.
-// Replace the body of `mockVerificationCall` with your real backend request
-// when the FastAPI backend is connected.
-//
-// Expected backend response:
-// { status, confidence, medicineName, manufacturer, batchNumber,
-//   manufacturingDate, expiryDate, barcode, issues }
+// MEDICINE VERIFICATION
+// The image is uploaded to the FastAPI backend.
+// OCR and AI authenticity analysis will be connected in the next stage.
 // ---------------------------------------------------------------------------
 
 const ANALYSIS_STAGES = [
@@ -22,237 +17,94 @@ const ANALYSIS_STAGES = [
   { key: "generating", label: "Generating verification result" },
 ];
 
-const MAX_FILE_SIZE_MB = 10;
-
-const ACCEPTED_TYPES = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-];
+const MAX_FILE_SIZE_MB = 5;
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function formatFileSize(bytes) {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-function mockVerificationCall() {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const roll = Math.random();
-
-      if (roll > 0.62) {
-        resolve({
-          status: "authentic",
-          confidence: 98.4,
-          medicineName: "Paracetamol 500 mg",
-          manufacturer: "Example Pharmaceuticals",
-          batchNumber: "ABC12345",
-          manufacturingDate: "06/2026",
-          expiryDate: "05/2028",
-          barcode: "8901234567890",
-          issues: [],
-        });
-      } else if (roll > 0.28) {
-        resolve({
-          status: "suspicious",
-          confidence: 46.7,
-          medicineName: "Paracetamol 500 mg",
-          manufacturer: "Example Pharmaceuticals",
-          batchNumber: "ABC12345",
-          manufacturingDate: "06/2026",
-          expiryDate: "05/2028",
-          barcode: "8901234567890",
-          issues: [
-            "Batch number could not be verified",
-            "Packaging information mismatch",
-            "Manufacturer information inconsistent",
-          ],
-        });
-      } else {
-        resolve({
-          status: "unable",
-          confidence: null,
-          issues: [],
-        });
-      }
-    }, 3200);
-  });
-}
-
 export default function VerifyMedicine() {
-  const navigate = useNavigate();
-
-  // -------------------------------------------------------------------------
-  // AUTHENTICATION PROTECTION
-  //
-  // Verify Medicine can only be accessed by a logged-in user.
-  //
-  // If the user is NOT logged in:
-  //      /verify -> /login
-  //
-  // The login page will later decide whether to send the user to:
-  //      /verify
-  // or
-  //      /dashboard
-  // depending on where they came from.
-  // -------------------------------------------------------------------------
-
-  useEffect(() => {
-    try {
-      const storedUser = JSON.parse(
-        localStorage.getItem("user") || "null"
-      );
-
-      if (!storedUser?.isLoggedIn) {
-        navigate("/login", {
-          replace: true,
-          state: {
-            from: "/verify",
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Unable to check login status:", error);
-
-      navigate("/login", {
-        replace: true,
-        state: {
-          from: "/verify",
-        },
-      });
-    }
-  }, [navigate]);
-
-  // -------------------------------------------------------------------------
-  // Flow state
+  // ---- Flow state ----------------------------------------------------
   // "choose" -> "camera" -> "preview" -> "analyzing" -> "result"
-  // -------------------------------------------------------------------------
-
   const [stage, setStage] = useState("choose");
 
-  // -------------------------------------------------------------------------
-  // Image state
-  // -------------------------------------------------------------------------
-
+  // ---- Image state -----------------------------------------------------
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [imageDimensions, setImageDimensions] = useState(null);
   const [uploadError, setUploadError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
 
-  // -------------------------------------------------------------------------
-  // Camera state
-  // -------------------------------------------------------------------------
-
+  // ---- Camera state -----------------------------------------------------
   const [cameraError, setCameraError] = useState("");
   const [isCameraReady, setIsCameraReady] = useState(false);
-
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // -------------------------------------------------------------------------
-  // Analysis / result state
-  // -------------------------------------------------------------------------
-
+  // ---- Analysis / result state ----
   const [completedStages, setCompletedStages] = useState([]);
   const [result, setResult] = useState(null);
 
-  // -------------------------------------------------------------------------
-  // Stop camera when component unmounts
-  // -------------------------------------------------------------------------
-
+  // Always stop the camera when the component unmounts, no matter what
+  // stage the user was in.
   useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-
+    return () => stopCamera();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function stopCamera() {
     if (streamRef.current) {
-      streamRef.current
-        .getTracks()
-        .forEach((track) => track.stop());
-
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
-
     setIsCameraReady(false);
   }
 
-  // =========================================================================
-  // CAMERA FLOW
-  // =========================================================================
-
+  // ---------------------------------------------------------------------
+  // Camera flow
+  // ---------------------------------------------------------------------
   async function openCamera() {
     setCameraError("");
     setUploadError("");
 
-    if (
-      !navigator.mediaDevices ||
-      !navigator.mediaDevices.getUserMedia
-    ) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCameraError(
         "Camera access isn't supported in this browser. Please upload an image instead."
       );
-
       return;
     }
 
     setStage("camera");
 
     try {
-      const stream =
-        await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: {
-              ideal: "environment",
-            },
-          },
-          audio: false,
-        });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
 
       streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-
         await videoRef.current.play();
       }
 
       setIsCameraReady(true);
     } catch (err) {
-      if (
-        err.name === "NotAllowedError" ||
-        err.name === "PermissionDeniedError"
-      ) {
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
         setCameraError(
           "Camera access was denied. You can still upload an image from your device."
         );
-      } else if (
-        err.name === "NotFoundError" ||
-        err.name === "DevicesNotFoundError"
-      ) {
-        setCameraError(
-          "No camera was found on this device. Please upload an image instead."
-        );
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        setCameraError("No camera was found on this device. Please upload an image instead.");
       } else {
-        setCameraError(
-          "Couldn't start the camera. Please upload an image instead."
-        );
+        setCameraError("Couldn't start the camera. Please upload an image instead.");
       }
-
       setStage("choose");
     }
   }
@@ -265,55 +117,23 @@ export default function VerifyMedicine() {
   function capturePhoto() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-
-    if (!video || !canvas) {
-      return;
-    }
+    if (!video || !canvas) return;
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-
     const ctx = canvas.getContext("2d");
-
-    if (!ctx) {
-      setCameraError(
-        "Couldn't capture the photo. Please try again."
-      );
-
-      return;
-    }
-
-    ctx.drawImage(
-      video,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          setCameraError(
-            "Couldn't capture the photo. Please try again."
-          );
-
+          setCameraError("Couldn't capture the photo. Please try again.");
           return;
         }
-
-        const capturedFile = new File(
-          [blob],
-          `medicine-capture-${Date.now()}.jpg`,
-          {
-            type: "image/jpeg",
-          }
-        );
-
-        acceptImage(capturedFile, {
-          width: canvas.width,
-          height: canvas.height,
+        const capturedFile = new File([blob], `medicine-capture-${Date.now()}.jpg`, {
+          type: "image/jpeg",
         });
-
+        acceptImage(capturedFile, { width: canvas.width, height: canvas.height });
         stopCamera();
         setStage("preview");
       },
@@ -322,31 +142,23 @@ export default function VerifyMedicine() {
     );
   }
 
-  // =========================================================================
-  // UPLOAD FLOW
-  // =========================================================================
-
+  // ---------------------------------------------------------------------
+  // Upload flow
+  // ---------------------------------------------------------------------
   function validateFile(file) {
-    if (!file) {
-      return "No file was selected.";
-    }
-
+    if (!file) return "No file was selected.";
     if (!ACCEPTED_TYPES.includes(file.type)) {
       return "Unsupported file type. Please upload a JPG, PNG, or WEBP image.";
     }
-
     if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
       return `File is too large. Maximum size is ${MAX_FILE_SIZE_MB} MB.`;
     }
-
     return "";
   }
 
   function acceptImage(file, knownDimensions) {
     setImageFile(file);
-
     const url = URL.createObjectURL(file);
-
     setPreviewUrl(url);
     setUploadError("");
     setResult(null);
@@ -355,47 +167,31 @@ export default function VerifyMedicine() {
       setImageDimensions(knownDimensions);
     } else {
       const img = new Image();
-
-      img.onload = () => {
-        setImageDimensions({
-          width: img.naturalWidth,
-          height: img.naturalHeight,
-        });
-      };
-
+      img.onload = () => setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
       img.src = url;
     }
   }
 
   function handleFileSelected(file) {
     const error = validateFile(file);
-
     if (error) {
       setUploadError(error);
       return;
     }
-
     acceptImage(file, null);
     setStage("preview");
   }
 
   function handleInputChange(e) {
     const file = e.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
+    if (!file) return; // selection cancelled
     handleFileSelected(file);
   }
 
   function handleDrop(e) {
     e.preventDefault();
-
     setIsDragging(false);
-
     const file = e.dataTransfer.files?.[0];
-
     handleFileSelected(file);
   }
 
@@ -414,19 +210,12 @@ export default function VerifyMedicine() {
   }
 
   function handleRemoveImage() {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setImageFile(null);
     setPreviewUrl(null);
     setImageDimensions(null);
     setUploadError("");
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setStage("choose");
   }
 
@@ -434,49 +223,93 @@ export default function VerifyMedicine() {
     handleBrowseClick();
   }
 
-  // =========================================================================
-  // VERIFICATION FLOW
-  // =========================================================================
-
+  // ---------------------------------------------------------------------
+  // Verification flow
+  // ---------------------------------------------------------------------
   async function handleVerification() {
-    if (!imageFile || stage === "analyzing") {
-      return;
-    }
+    if (!imageFile || stage === "analyzing") return;
 
     setStage("analyzing");
     setCompletedStages([]);
     setResult(null);
+    setUploadError("");
 
-    const stageTimers = ANALYSIS_STAGES.map(
-      (s, index) =>
-        setTimeout(() => {
-          setCompletedStages((prev) => [
-            ...prev,
-            s.key,
-          ]);
-        }, (index + 1) * 480)
+    const stageTimers = ANALYSIS_STAGES.map((s, index) =>
+      setTimeout(() => {
+        setCompletedStages((prev) => [...prev, s.key]);
+      }, (index + 1) * 480)
     );
 
-    const verificationResult =
-      await mockVerificationCall();
+    try {
+      // Get the JWT saved during login/signup.
+      const token = localStorage.getItem("access_token");
 
-    stageTimers.forEach(clearTimeout);
+      if (!token) {
+        throw new Error("Please log in before verifying a medicine.");
+      }
 
-    setCompletedStages(
-      ANALYSIS_STAGES.map((s) => s.key)
-    );
+      // Send the selected/captured image as multipart/form-data.
+      const formData = new FormData();
+      formData.append("file", imageFile);
 
-    setTimeout(() => {
-      setResult(verificationResult);
-      setStage("result");
-    }, 400);
+      const response = await fetch("/verification/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "Failed to upload medicine image."
+        );
+      }
+
+      // The backend upload succeeded.
+      stageTimers.forEach(clearTimeout);
+
+      setCompletedStages(
+        ANALYSIS_STAGES.map((s) => s.key)
+      );
+
+      // Temporary result until OCR + AI analysis is implemented.
+      const verificationResult = {
+        status: "unable",
+        confidence: null,
+        medicineName: null,
+        manufacturer: null,
+        batchNumber: null,
+        manufacturingDate: null,
+        expiryDate: null,
+        barcode: null,
+        issues: [],
+        uploadMessage: data.message,
+        filename: data.filename,
+      };
+
+      setTimeout(() => {
+        setResult(verificationResult);
+        setStage("result");
+      }, 400);
+
+    } catch (error) {
+      stageTimers.forEach(clearTimeout);
+
+      setCompletedStages([]);
+      setStage("preview");
+
+      setUploadError(
+        error.message ||
+        "Something went wrong while uploading the medicine image."
+      );
+    }
   }
 
   function handleVerifyAnother() {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setImageFile(null);
     setPreviewUrl(null);
     setImageDimensions(null);
@@ -484,149 +317,75 @@ export default function VerifyMedicine() {
     setCameraError("");
     setCompletedStages([]);
     setResult(null);
-
     stopCamera();
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setStage("choose");
   }
 
   function handleReportMedicine() {
+    // Placeholder hook — wire this up to a real reporting endpoint later.
     window.alert(
       "Thanks for flagging this. Reporting isn't connected to a backend yet — hook this button up to your reporting API."
     );
   }
 
-  // =========================================================================
-  // UI
-  // =========================================================================
-
   return (
-    <section
-      className="verify-page"
-      aria-labelledby="verify-heading"
-    >
+    <section className="verify-page" aria-labelledby="verify-heading">
       <div className="verify-container">
-
-        {/* ================= HEADER ================= */}
-
+        {/* ---------------- Header ---------------- */}
         <motion.header
           className="verify-header"
-          initial={{
-            opacity: 0,
-            y: 12,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          transition={{
-            duration: 0.4,
-          }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
         >
-          <span className="verify-badge">
-            AI-Powered Medicine Verification
-          </span>
-
-          <h1
-            id="verify-heading"
-            className="verify-title"
-          >
+          <span className="verify-badge">AI-Powered Medicine Verification</span>
+          <h1 id="verify-heading" className="verify-title">
             Verify Your Medicine
           </h1>
-
           <p className="verify-subtitle">
-            Check your medicine&apos;s authenticity using
-            AI-powered image analysis and verification.
+            Check your medicine&apos;s authenticity using AI-powered image analysis
+            and verification.
           </p>
-
           <p className="verify-trust-note">
-            Upload or capture a clear image of your
-            medicine packaging.
+            Upload or capture a clear image of your medicine packaging.
           </p>
         </motion.header>
 
-        {/* ================= CHOOSE METHOD ================= */}
-
+        {/* ---------------- Step: choose method ---------------- */}
         {stage === "choose" && (
           <motion.div
             className="verify-card"
-            initial={{
-              opacity: 0,
-              y: 10,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
-            transition={{
-              duration: 0.35,
-            }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
           >
             {(cameraError || uploadError) && (
-              <p
-                className="verify-error"
-                role="alert"
-              >
+              <p className="verify-error" role="alert">
                 {cameraError || uploadError}
               </p>
             )}
 
             <div className="choice-grid">
-
-              <button
-                type="button"
-                className="choice-option"
-                onClick={openCamera}
-              >
-                <span
-                  className="choice-option__icon"
-                  aria-hidden="true"
-                >
+              <button type="button" className="choice-option" onClick={openCamera}>
+                <span className="choice-option__icon" aria-hidden="true">
                   📷
                 </span>
-
-                <span className="choice-option__label">
-                  Use Camera
-                </span>
-
-                <span className="choice-option__hint">
-                  Capture a live photo
-                </span>
+                <span className="choice-option__label">Use Camera</span>
+                <span className="choice-option__hint">Capture a live photo</span>
               </button>
 
-              <button
-                type="button"
-                className="choice-option"
-                onClick={handleBrowseClick}
-              >
-                <span
-                  className="choice-option__icon"
-                  aria-hidden="true"
-                >
+              <button type="button" className="choice-option" onClick={handleBrowseClick}>
+                <span className="choice-option__icon" aria-hidden="true">
                   📁
                 </span>
-
-                <span className="choice-option__label">
-                  Upload Image
-                </span>
-
-                <span className="choice-option__hint">
-                  Choose from your device
-                </span>
+                <span className="choice-option__label">Upload Image</span>
+                <span className="choice-option__hint">Choose from your device</span>
               </button>
-
             </div>
 
             <div
-              className={`upload-dropzone ${
-                isDragging
-                  ? "upload-dropzone--dragging"
-                  : ""
-              }`}
+              className={`upload-dropzone ${isDragging ? "upload-dropzone--dragging" : ""}`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -635,36 +394,22 @@ export default function VerifyMedicine() {
               aria-label="Drag and drop a medicine image, or browse from your device"
               onClick={handleBrowseClick}
               onKeyDown={(e) => {
-                if (
-                  e.key === "Enter" ||
-                  e.key === " "
-                ) {
+                if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   handleBrowseClick();
                 }
               }}
             >
-              <p className="upload-dropzone__title">
-                Drag &amp; drop your medicine image here
-              </p>
-
-              <p className="upload-dropzone__hint">
-                or browse from your device
-              </p>
-
+              <p className="upload-dropzone__title">Drag &amp; drop your medicine image here</p>
+              <p className="upload-dropzone__hint">or browse from your device</p>
               <p className="upload-dropzone__meta">
-                Supported formats: JPG, PNG, WEBP
-                &bull; Max {MAX_FILE_SIZE_MB} MB
+                Supported formats: JPG, PNG, WEBP &bull; Max {MAX_FILE_SIZE_MB} MB
               </p>
             </div>
 
-            <label
-              htmlFor="medicine-file-input"
-              className="visually-hidden"
-            >
+            <label htmlFor="medicine-file-input" className="visually-hidden">
               Upload medicine packaging image
             </label>
-
             <input
               ref={fileInputRef}
               id="medicine-file-input"
@@ -676,25 +421,15 @@ export default function VerifyMedicine() {
           </motion.div>
         )}
 
-        {/* ================= CAMERA ================= */}
-
+        {/* ---------------- Step: camera ---------------- */}
         {stage === "camera" && (
           <motion.div
             className="verify-card"
-            initial={{
-              opacity: 0,
-              scale: 0.98,
-            }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-            }}
-            transition={{
-              duration: 0.3,
-            }}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
           >
             <div className="camera-view">
-
               <div className="camera-view__frame-wrap">
                 <video
                   ref={videoRef}
@@ -703,11 +438,7 @@ export default function VerifyMedicine() {
                   muted
                   aria-label="Live camera preview"
                 />
-
-                <div
-                  className="camera-view__guide"
-                  aria-hidden="true"
-                >
+                <div className="camera-view__guide" aria-hidden="true">
                   <span className="camera-view__guide-corner camera-view__guide-corner--tl" />
                   <span className="camera-view__guide-corner camera-view__guide-corner--tr" />
                   <span className="camera-view__guide-corner camera-view__guide-corner--bl" />
@@ -716,22 +447,17 @@ export default function VerifyMedicine() {
               </div>
 
               <p className="camera-view__instruction">
-                Place the medicine package inside the
-                frame and make sure the text is clearly
-                visible.
+                Place the medicine package inside the frame and make sure the text
+                is clearly visible.
               </p>
 
               {cameraError && (
-                <p
-                  className="verify-error"
-                  role="alert"
-                >
+                <p className="verify-error" role="alert">
                   {cameraError}
                 </p>
               )}
 
               <div className="camera-view__actions">
-
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -740,124 +466,63 @@ export default function VerifyMedicine() {
                 >
                   Capture Photo
                 </button>
-
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={closeCamera}
-                >
+                <button type="button" className="btn btn-ghost" onClick={closeCamera}>
                   Close Camera
                 </button>
-
               </div>
             </div>
 
-            <canvas
-              ref={canvasRef}
-              className="visually-hidden"
-              aria-hidden="true"
-            />
+            <canvas ref={canvasRef} className="visually-hidden" aria-hidden="true" />
           </motion.div>
         )}
 
-        {/* ================= PREVIEW ================= */}
-
+        {/* ---------------- Step: preview ---------------- */}
         {stage === "preview" && imageFile && (
           <motion.div
             className="verify-card"
-            initial={{
-              opacity: 0,
-              y: 10,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
-            transition={{
-              duration: 0.35,
-            }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
           >
-            <p className="preview-success">
-              Photo ready &mdash; here&apos;s your preview
-            </p>
+            <p className="preview-success">Photo ready &mdash; here&apos;s your preview</p>
 
             <div className="preview">
-
               <div className="preview__image-wrap">
-                <img
-                  src={previewUrl}
-                  alt="Selected medicine packaging"
-                  className="preview__image"
-                />
+                <img src={previewUrl} alt="Selected medicine packaging" className="preview__image" />
               </div>
 
               <div className="preview__details">
-
-                <p
-                  className="preview__filename"
-                  title={imageFile.name}
-                >
+                <p className="preview__filename" title={imageFile.name}>
                   {imageFile.name}
                 </p>
-
                 <p className="preview__meta">
                   {formatFileSize(imageFile.size)}
-
-                  {imageDimensions
-                    ? ` · ${imageDimensions.width}×${imageDimensions.height}px`
-                    : ""}
+                  {imageDimensions ? ` \u00b7 ${imageDimensions.width}\u00d7${imageDimensions.height}px` : ""}
                 </p>
 
                 <ul className="quality-checklist">
-
                   <li className="quality-checklist__item quality-checklist__item--pass">
-                    <span aria-hidden="true">
-                      ✓
-                    </span>
-                    Image selected
+                    <span aria-hidden="true">✓</span> Image selected
                   </li>
-
                   <li className="quality-checklist__item quality-checklist__item--pass">
-                    <span aria-hidden="true">
-                      ✓
-                    </span>
-                    Image format supported
+                    <span aria-hidden="true">✓</span> Image format supported
                   </li>
-
                   <li className="quality-checklist__item quality-checklist__item--pass">
-                    <span aria-hidden="true">
-                      ✓
-                    </span>
-                    Image size valid
+                    <span aria-hidden="true">✓</span> Image size valid
                   </li>
-
                 </ul>
-
                 <p className="quality-warning">
-                  Tip: for best results, make sure the
-                  medicine name, batch number, and
-                  packaging text are clearly visible and
-                  in focus.
+                  Tip: for best results, make sure the medicine name, batch number,
+                  and packaging text are clearly visible and in focus.
                 </p>
 
                 <div className="preview__actions">
-
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={handleChangeImage}
-                  >
+                  <button type="button" className="btn btn-secondary" onClick={handleChangeImage}>
                     Change Image
                   </button>
-
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={handleRemoveImage}
-                  >
+                  <button type="button" className="btn btn-ghost" onClick={handleRemoveImage}>
                     Remove
                   </button>
-
                 </div>
 
                 <input
@@ -871,10 +536,7 @@ export default function VerifyMedicine() {
                 />
 
                 {uploadError && (
-                  <p
-                    className="verify-error"
-                    role="alert"
-                  >
+                  <p className="verify-error" role="alert">
                     {uploadError}
                   </p>
                 )}
@@ -887,184 +549,113 @@ export default function VerifyMedicine() {
                 >
                   Verify Medicine
                 </button>
-
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* ================= ANALYZING ================= */}
-
+        {/* ---------------- Step: analyzing ---------------- */}
         {stage === "analyzing" && (
           <motion.div
             className="verify-card"
-            initial={{
-              opacity: 0,
-            }}
-            animate={{
-              opacity: 1,
-            }}
-            transition={{
-              duration: 0.3,
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
           >
-            <div
-              className="analysis"
-              role="status"
-              aria-live="polite"
-            >
-
+            <div className="analysis" role="status" aria-live="polite">
               <div className="analysis__header">
-
-                <span
-                  className="analysis__spinner"
-                  aria-hidden="true"
-                />
-
-                <p className="analysis__title">
-                  Analyzing Medicine&hellip;
-                </p>
-
+                <span className="analysis__spinner" aria-hidden="true" />
+                <p className="analysis__title">Analyzing Medicine&hellip;</p>
               </div>
 
               <ul className="analysis__stages">
-
                 {ANALYSIS_STAGES.map((s) => {
-                  const done =
-                    completedStages.includes(s.key);
-
+                  const done = completedStages.includes(s.key);
                   return (
                     <li
                       key={s.key}
-                      className={`analysis__stage ${
-                        done
-                          ? "analysis__stage--done"
-                          : ""
-                      }`}
+                      className={`analysis__stage ${done ? "analysis__stage--done" : ""}`}
                     >
-                      <span
-                        className="analysis__stage-icon"
-                        aria-hidden="true"
-                      >
+                      <span className="analysis__stage-icon" aria-hidden="true">
                         {done ? "✓" : "○"}
                       </span>
-
                       {s.label}
                     </li>
                   );
                 })}
-
               </ul>
 
               <p className="analysis__note">
-                This is a frontend simulation for demo
-                purposes and is not yet connected to a live
-                AI backend.
+                Your image is being securely uploaded to the verification backend.
+                OCR and AI authenticity analysis will be connected next.
               </p>
-
             </div>
           </motion.div>
         )}
 
-        {/* ================= RESULTS ================= */}
-
+        {/* ---------------- Step: result ---------------- */}
         <AnimatePresence>
+          {stage === "result" && result && result.status === "authentic" && (
+            <ResultAuthentic result={result} onVerifyAnother={handleVerifyAnother} />
+          )}
 
-          {stage === "result" &&
-            result &&
-            result.status === "authentic" && (
-              <ResultAuthentic
-                result={result}
-                onVerifyAnother={
-                  handleVerifyAnother
-                }
-              />
-            )}
+          {stage === "result" && result && result.status === "suspicious" && (
+            <ResultSuspicious
+              result={result}
+              onVerifyAnother={handleVerifyAnother}
+              onReport={handleReportMedicine}
+            />
+          )}
 
-          {stage === "result" &&
-            result &&
-            result.status === "suspicious" && (
-              <ResultSuspicious
-                result={result}
-                onVerifyAnother={
-                  handleVerifyAnother
-                }
-                onReport={handleReportMedicine}
-              />
-            )}
-
-          {stage === "result" &&
-            result &&
-            result.status === "unable" && (
-              <ResultUnableToVerify
-                onTryAgain={() =>
-                  setStage("preview")
-                }
-                onUploadNew={
-                  handleVerifyAnother
-                }
-              />
-            )}
-
+          {stage === "result" && result && result.status === "unable" && (
+            <ResultUnableToVerify
+              onTryAgain={() => setStage("preview")}
+              onUploadNew={handleVerifyAnother}
+            />
+          )}
         </AnimatePresence>
-
       </div>
     </section>
   );
 }
 
-// =============================================================================
-// RESULT COMPONENTS
-// =============================================================================
+// ---------------------------------------------------------------------------
+// Result sub-components
+// ---------------------------------------------------------------------------
 
 function ExtractedInfo({ result }) {
   return (
     <div className="extracted-info">
-
       <div className="extracted-info__header">
-
-        <p className="extracted-info__title">
-          Extracted Medicine Information
-        </p>
-
-        <span className="extracted-info__demo-tag">
-          Demo values &mdash; OCR not yet connected
-        </span>
-
+        <p className="extracted-info__title">Extracted Medicine Information</p>
+        <span className="extracted-info__demo-tag">Demo values &mdash; OCR not yet connected</span>
       </div>
 
       <dl className="extracted-info__grid">
-
         <div className="extracted-info__row">
           <dt>Medicine Name</dt>
           <dd>{result.medicineName}</dd>
         </div>
-
         <div className="extracted-info__row">
           <dt>Manufacturer</dt>
           <dd>{result.manufacturer}</dd>
         </div>
-
         <div className="extracted-info__row">
           <dt>Batch Number</dt>
           <dd>{result.batchNumber}</dd>
         </div>
-
         <div className="extracted-info__row">
           <dt>Manufacturing Date</dt>
           <dd>{result.manufacturingDate}</dd>
         </div>
-
         <div className="extracted-info__row">
           <dt>Expiry Date</dt>
           <dd>{result.expiryDate}</dd>
         </div>
-
         <div className="extracted-info__row">
           <dt>Barcode / QR</dt>
           <dd>{result.barcode}</dd>
         </div>
-
       </dl>
     </div>
   );
@@ -1072,31 +663,13 @@ function ExtractedInfo({ result }) {
 
 function ConfidenceRing({ value }) {
   const radius = 42;
-
-  const circumference =
-    2 * Math.PI * radius;
-
-  const offset =
-    circumference -
-    (value / 100) * circumference;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
 
   return (
-    <div
-      className="confidence-ring"
-      role="img"
-      aria-label={`Confidence score ${value}%`}
-    >
-      <svg
-        viewBox="0 0 100 100"
-        className="confidence-ring__svg"
-      >
-        <circle
-          className="confidence-ring__track"
-          cx="50"
-          cy="50"
-          r={radius}
-        />
-
+    <div className="confidence-ring" role="img" aria-label={`Confidence score ${value}%`}>
+      <svg viewBox="0 0 100 100" className="confidence-ring__svg">
+        <circle className="confidence-ring__track" cx="50" cy="50" r={radius} />
         <circle
           className="confidence-ring__value"
           cx="50"
@@ -1106,53 +679,26 @@ function ConfidenceRing({ value }) {
           strokeDashoffset={offset}
         />
       </svg>
-
-      <span className="confidence-ring__label">
-        {value}%
-      </span>
+      <span className="confidence-ring__label">{value}%</span>
     </div>
   );
 }
 
-function ResultAuthentic({
-  result,
-  onVerifyAnother,
-}) {
+function ResultAuthentic({ result, onVerifyAnother }) {
   return (
     <motion.div
       className="verify-card result result--authentic"
-      initial={{
-        opacity: 0,
-        y: 12,
-        scale: 0.98,
-      }}
-      animate={{
-        opacity: 1,
-        y: 0,
-        scale: 1,
-      }}
-      exit={{
-        opacity: 0,
-        y: -8,
-      }}
-      transition={{
-        duration: 0.4,
-      }}
+      initial={{ opacity: 0, y: 12, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.4 }}
     >
-      <div
-        className="result__icon result__icon--authentic"
-        aria-hidden="true"
-      >
+      <div className="result__icon result__icon--authentic" aria-hidden="true">
         ✓
       </div>
+      <h2 className="result__title">Medicine Appears Authentic</h2>
 
-      <h2 className="result__title">
-        Medicine Appears Authentic
-      </h2>
-
-      <ConfidenceRing
-        value={result.confidence}
-      />
+      <ConfidenceRing value={result.confidence} />
 
       <ul className="result__checks">
         <li>✓ Packaging information analyzed</li>
@@ -1164,171 +710,91 @@ function ResultAuthentic({
       <ExtractedInfo result={result} />
 
       <p className="result__disclaimer">
-        This result comes from a demo analysis pipeline
-        and has not been checked against a live
-        verification backend yet.
+        This result comes from a demo analysis pipeline and has not been checked
+        against a live verification backend yet.
       </p>
 
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={onVerifyAnother}
-      >
+      <button type="button" className="btn btn-primary" onClick={onVerifyAnother}>
         Verify Another Medicine
       </button>
     </motion.div>
   );
 }
 
-function ResultSuspicious({
-  result,
-  onVerifyAnother,
-  onReport,
-}) {
+function ResultSuspicious({ result, onVerifyAnother, onReport }) {
   return (
     <motion.div
       className="verify-card result result--suspicious"
-      initial={{
-        opacity: 0,
-        y: 12,
-        scale: 0.98,
-      }}
-      animate={{
-        opacity: 1,
-        y: 0,
-        scale: 1,
-      }}
-      exit={{
-        opacity: 0,
-        y: -8,
-      }}
-      transition={{
-        duration: 0.4,
-      }}
+      initial={{ opacity: 0, y: 12, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.4 }}
     >
-      <div
-        className="result__icon result__icon--suspicious"
-        aria-hidden="true"
-      >
+      <div className="result__icon result__icon--suspicious" aria-hidden="true">
         ⚠
       </div>
+      <h2 className="result__title">Potentially Counterfeit</h2>
 
-      <h2 className="result__title">
-        Potentially Counterfeit
-      </h2>
-
-      <ConfidenceRing
-        value={result.confidence}
-      />
+      <ConfidenceRing value={result.confidence} />
 
       <div className="result__issues">
-
-        <p className="result__issues-label">
-          Detected issues
-        </p>
-
+        <p className="result__issues-label">Detected issues</p>
         <ul>
           {result.issues.map((issue) => (
-            <li key={issue}>
-              ⚠ {issue}
-            </li>
+            <li key={issue}>⚠ {issue}</li>
           ))}
         </ul>
-
       </div>
 
       <ExtractedInfo result={result} />
 
       <p className="result__disclaimer">
-        This result comes from a demo analysis pipeline
-        and has not been checked against a live
-        verification backend yet. Use additional
-        judgment before acting on it.
+        This result comes from a demo analysis pipeline and has not been checked
+        against a live verification backend yet. Use additional judgment before
+        acting on it.
       </p>
 
       <div className="result__actions">
-
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={onVerifyAnother}
-        >
+        <button type="button" className="btn btn-secondary" onClick={onVerifyAnother}>
           Verify Another Medicine
         </button>
-
-        <button
-          type="button"
-          className="btn btn-danger"
-          onClick={onReport}
-        >
+        <button type="button" className="btn btn-danger" onClick={onReport}>
           Report Medicine
         </button>
-
       </div>
     </motion.div>
   );
 }
 
-function ResultUnableToVerify({
-  onTryAgain,
-  onUploadNew,
-}) {
+function ResultUnableToVerify({ onTryAgain, onUploadNew }) {
   return (
     <motion.div
       className="verify-card result result--unable"
-      initial={{
-        opacity: 0,
-        y: 12,
-        scale: 0.98,
-      }}
-      animate={{
-        opacity: 1,
-        y: 0,
-        scale: 1,
-      }}
-      exit={{
-        opacity: 0,
-        y: -8,
-      }}
-      transition={{
-        duration: 0.4,
-      }}
+      initial={{ opacity: 0, y: 12, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.4 }}
     >
-      <div
-        className="result__icon result__icon--unable"
-        aria-hidden="true"
-      >
-        ?
+      <div className="result__icon result__icon--unable" aria-hidden="true">
+        ✓
       </div>
+      <h2 className="result__title">Image Uploaded Successfully</h2>
 
-      <h2 className="result__title">
-        Unable to Verify
-      </h2>
-
-      <p className="result__unable-text">
-        We could not confidently verify this medicine.
-        Please upload a clearer image showing the
-        medicine name, batch number, and packaging.
+      <p className="result__description">
+      Your medicine image has been successfully uploaded and is ready for
+      analysis. OCR and AI-based authenticity verification will be added
+      in the next stage.
       </p>
 
       <div className="result__actions">
+        <button type="button" className="btn btn-secondary" onClick={onTryAgain}>
 
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={onTryAgain}
-        >
           Try Again
         </button>
-
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={onUploadNew}
-        >
+        <button type="button" className="btn btn-primary" onClick={onUploadNew}>
+          
           Upload New Image
         </button>
-
       </div>
     </motion.div>
   );

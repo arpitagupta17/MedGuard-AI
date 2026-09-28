@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { useLocation, useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-
 import {
   HiOutlineMail,
   HiOutlineLockClosed,
@@ -14,217 +13,217 @@ import {
 import logo from "../../assets/logo.png";
 import "./login.css";
 
-import {
-  authenticateDemoAccount,
-  saveLoggedInUser,
-} from "../../utils/auth";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/* =========================================================
-   DEMO AUTHENTICATION
-   Replace this with FastAPI authentication later.
-========================================================= */
-
-async function authenticate(email, password) {
-  await new Promise((resolve) =>
-    setTimeout(resolve, 700)
-  );
-
-  return authenticateDemoAccount(email, password);
-}
-
-/* =========================================================
-   LOGIN COMPONENT
-========================================================= */
 
 export default function Login() {
   const navigate = useNavigate();
-  const location = useLocation();
 
-  /*
-    This tells us where the user came from.
-
-    Example:
-
-    If user clicked Verify Medicine while logged out:
-
-    {
-      from: "/verify"
-    }
-
-    If user clicked Login normally:
-
-    state will be undefined.
-  */
-  const from = location.state?.from;
-
-  /* -------------------------------------------------------
-     Form values
-  ------------------------------------------------------- */
+  // ---------------------------------------------------------
+  // FORM STATE
+  // ---------------------------------------------------------
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  /* -------------------------------------------------------
-     UI state
-  ------------------------------------------------------- */
-
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  /* -------------------------------------------------------
-     Errors
-  ------------------------------------------------------- */
-
-  const [formError, setFormError] = useState("");
 
   const [touched, setTouched] = useState({
     email: false,
     password: false,
   });
 
-  /* =======================================================
-     EMAIL VALIDATION
-  ======================================================= */
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+
+
+  // ---------------------------------------------------------
+  // EMAIL VALIDATION
+  // ---------------------------------------------------------
 
   const emailError =
     touched.email && !email
       ? "Email is required."
-      : touched.email &&
-        !EMAIL_PATTERN.test(email)
+      : touched.email && !EMAIL_PATTERN.test(email)
       ? "Please enter a valid email address."
       : "";
 
-  /* =======================================================
-     PASSWORD VALIDATION
-  ======================================================= */
+
+  // ---------------------------------------------------------
+  // PASSWORD VALIDATION
+  // ---------------------------------------------------------
 
   const passwordError =
     touched.password && !password
       ? "Password is required."
       : "";
 
-  /* =======================================================
-     FORM VALIDATION
-  ======================================================= */
+
+  // ---------------------------------------------------------
+  // FORM VALIDATION
+  // ---------------------------------------------------------
 
   const isFormValid =
-    Boolean(email) &&
-    EMAIL_PATTERN.test(email) &&
-    Boolean(password);
+    email.trim() &&
+    EMAIL_PATTERN.test(email.trim()) &&
+    password;
 
-  /* =======================================================
-     HANDLE BLUR
-  ======================================================= */
+
+  // ---------------------------------------------------------
+  // HANDLE BLUR
+  // ---------------------------------------------------------
 
   function handleBlur(field) {
-    setTouched((previous) => ({
-      ...previous,
+    setTouched((prev) => ({
+      ...prev,
       [field]: true,
     }));
   }
 
-  /* =======================================================
-     HANDLE LOGIN
-  ======================================================= */
+
+  // ---------------------------------------------------------
+  // LOGIN
+  // ---------------------------------------------------------
 
   async function handleSubmit(e) {
     e.preventDefault();
 
-    /* Show validation errors */
-
+    // Show validation errors
     setTouched({
       email: true,
       password: true,
     });
 
+    // Clear previous backend error
     setFormError("");
 
-    /* Stop if invalid */
 
+    // Stop if form is invalid
     if (
-      !email ||
-      !EMAIL_PATTERN.test(email) ||
+      !email.trim() ||
+      !EMAIL_PATTERN.test(email.trim()) ||
       !password ||
       isSubmitting
     ) {
       return;
     }
 
+
     setIsSubmitting(true);
 
+
     try {
-      /* ---------------------------------------------------
-         Authenticate user
-      --------------------------------------------------- */
+      // -------------------------------------------------------
+      // SEND LOGIN REQUEST TO FASTAPI
+      // -------------------------------------------------------
 
-      const user = await authenticate(
-        email.trim(),
-        password
+      const response = await fetch(
+        "http://127.0.0.1:8000/auth/login",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            email: email.trim(),
+            password: password,
+          }),
+        }
       );
 
-      /* ---------------------------------------------------
-         Save logged-in user
-      --------------------------------------------------- */
 
-      saveLoggedInUser(user);
+      // -------------------------------------------------------
+      // READ RESPONSE
+      // -------------------------------------------------------
 
-      /* ---------------------------------------------------
-         Tell Navbar authentication has changed
-      --------------------------------------------------- */
+      const data = await response.json();
 
-      window.dispatchEvent(
-        new Event("authChanged")
-      );
 
-      /* ---------------------------------------------------
-         IMPORTANT REDIRECT LOGIC
+      // -------------------------------------------------------
+      // HANDLE BACKEND ERROR
+      // -------------------------------------------------------
 
-         Case 1:
-         User clicked Verify Medicine while logged out.
-
-         Login -> Verify
-
-         Case 2:
-         User clicked Login normally.
-
-         Login -> Dashboard
-      --------------------------------------------------- */
-
-      if (from === "/verify") {
-        navigate("/verify", {
-          replace: true,
-        });
-      } else {
-        navigate("/dashboard", {
-          replace: true,
-        });
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            "Unable to sign in. Please check your email and password."
+        );
       }
 
-    } catch (err) {
+
+      // -------------------------------------------------------
+      // SAVE JWT TOKEN
+      // -------------------------------------------------------
+
+      localStorage.setItem(
+        "access_token",
+        data.access_token
+      );
+
+
+      // Save token type
+      localStorage.setItem(
+        "token_type",
+        data.token_type || "bearer"
+      );
+
+
+      // -------------------------------------------------------
+      // SAVE LOGGED-IN USER
+      // -------------------------------------------------------
+
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          user_id: data.user_id,
+          name: data.name,
+          email: data.email,
+          isLoggedIn: true,
+        })
+      );
+
+
+      // -------------------------------------------------------
+      // REDIRECT TO DASHBOARD
+      // -------------------------------------------------------
+
+      navigate("/dashboard");
+
+
+    } catch (error) {
+      // -------------------------------------------------------
+      // SHOW LOGIN ERROR
+      // -------------------------------------------------------
+
       setFormError(
-        err.message ||
+        error.message ||
           "Unable to sign in. Please check your email and password."
       );
+
+
     } finally {
+      // -------------------------------------------------------
+      // STOP LOADING
+      // -------------------------------------------------------
+
       setIsSubmitting(false);
     }
   }
 
-  /* =======================================================
-     RENDER
-  ======================================================= */
 
   return (
     <section className="login-page">
 
       <div className="login-layout">
 
-        {/* =================================================
+
+        {/* =====================================================
             BRANDING SIDE
-        ================================================== */}
+        ====================================================== */}
 
         <motion.aside
           className="login-branding"
@@ -249,9 +248,11 @@ export default function Login() {
             aria-hidden="true"
           />
 
+
           <div className="login-branding__content">
 
-            {/* Logo */}
+
+            {/* ================= LOGO ================= */}
 
             <Link
               to="/"
@@ -269,27 +270,30 @@ export default function Login() {
 
             </Link>
 
-            {/* Heading */}
+
+            {/* ================= HEADING ================= */}
 
             <h1 className="login-branding__headline">
 
               Verify Medicines.
-
               <br />
-
               Protect Lives.
 
             </h1>
 
-            {/* Description */}
+
+            {/* ================= DESCRIPTION ================= */}
 
             <p className="login-branding__text">
+
               AI-powered counterfeit medicine detection
               designed to help users verify medicines
               with confidence.
+
             </p>
 
-            {/* Trust Points */}
+
+            {/* ================= TRUST POINTS ================= */}
 
             <ul className="login-branding__trust-list">
 
@@ -307,18 +311,21 @@ export default function Login() {
 
             </ul>
 
+
           </div>
 
         </motion.aside>
 
 
-        {/* =================================================
+
+        {/* =====================================================
             LOGIN FORM SIDE
-        ================================================== */}
+        ====================================================== */}
 
         <div className="login-form-side">
 
-          {/* Back to Home */}
+
+          {/* ================= BACK TO HOME ================= */}
 
           <Link
             to="/"
@@ -332,6 +339,7 @@ export default function Login() {
             Back to Home
 
           </Link>
+
 
 
           <motion.div
@@ -353,6 +361,7 @@ export default function Login() {
             }}
           >
 
+
             {/* =================================================
                 HEADER
             ================================================== */}
@@ -361,9 +370,11 @@ export default function Login() {
               Welcome Back
             </h2>
 
+
             <p className="login-card__subtitle">
               Sign in to continue to MedGuard AI.
             </p>
+
 
 
             {/* =================================================
@@ -407,8 +418,9 @@ export default function Login() {
             </AnimatePresence>
 
 
+
             {/* =================================================
-                FORM
+                LOGIN FORM
             ================================================== */}
 
             <form
@@ -416,13 +428,17 @@ export default function Login() {
               noValidate
             >
 
-              {/* ================= EMAIL ================= */}
+
+              {/* =================================================
+                  EMAIL
+              ================================================== */}
 
               <div className="form-field">
 
                 <label htmlFor="login-email">
                   Email Address
                 </label>
+
 
                 <div
                   className={`input-wrap ${
@@ -437,16 +453,16 @@ export default function Login() {
                     aria-hidden="true"
                   />
 
+
                   <input
                     id="login-email"
                     type="email"
 
                     value={email}
 
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setFormError("");
-                    }}
+                    onChange={(e) =>
+                      setEmail(e.target.value)
+                    }
 
                     onBlur={() =>
                       handleBlur("email")
@@ -486,13 +502,17 @@ export default function Login() {
               </div>
 
 
-              {/* ================= PASSWORD ================= */}
+
+              {/* =================================================
+                  PASSWORD
+              ================================================== */}
 
               <div className="form-field">
 
                 <label htmlFor="login-password">
                   Password
                 </label>
+
 
                 <div
                   className={`input-wrap ${
@@ -507,6 +527,7 @@ export default function Login() {
                     aria-hidden="true"
                   />
 
+
                   <input
                     id="login-password"
 
@@ -518,10 +539,9 @@ export default function Login() {
 
                     value={password}
 
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setFormError("");
-                    }}
+                    onChange={(e) =>
+                      setPassword(e.target.value)
+                    }
 
                     onBlur={() =>
                       handleBlur("password")
@@ -543,7 +563,7 @@ export default function Login() {
                   />
 
 
-                  {/* Show / Hide Password */}
+                  {/* ================= SHOW / HIDE PASSWORD ================= */}
 
                   <button
                     type="button"
@@ -598,7 +618,10 @@ export default function Login() {
               </div>
 
 
-              {/* ================= OPTIONS ================= */}
+
+              {/* =================================================
+                  OPTIONS
+              ================================================== */}
 
               <div className="form-row">
 
@@ -616,9 +639,7 @@ export default function Login() {
                     }
                   />
 
-                  <span>
-                    Remember me
-                  </span>
+                  Remember me
 
                 </label>
 
@@ -627,16 +648,22 @@ export default function Login() {
                   to="/forgot-password"
                   className="forgot-link"
                 >
+
                   Forgot password?
+
                 </Link>
 
               </div>
 
 
-              {/* ================= LOGIN BUTTON ================= */}
+
+              {/* =================================================
+                  LOGIN BUTTON
+              ================================================== */}
 
               <button
                 type="submit"
+
                 className="btn-login"
 
                 disabled={
@@ -652,12 +679,14 @@ export default function Login() {
                 {isSubmitting ? (
 
                   <>
+
                     <span
                       className="btn-login__spinner"
                       aria-hidden="true"
                     />
 
                     Signing in...
+
                   </>
 
                 ) : (
@@ -668,7 +697,9 @@ export default function Login() {
 
               </button>
 
+
             </form>
+
 
 
             {/* =================================================
@@ -679,14 +710,12 @@ export default function Login() {
 
               Don&apos;t have an account?{" "}
 
-              <Link
-                to="/signup"
-                state={location.state}
-              >
+              <Link to="/signup">
                 Create an account
               </Link>
 
             </p>
+
 
 
             {/* =================================================
@@ -704,6 +733,7 @@ export default function Login() {
 
             </p>
 
+
           </motion.div>
 
         </div>
@@ -713,3 +743,5 @@ export default function Login() {
     </section>
   );
 }
+
+

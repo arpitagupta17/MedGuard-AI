@@ -1,26 +1,10 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  HiMenu,
-  HiX,
-  HiOutlineUserCircle,
-  HiOutlineLogout,
-} from "react-icons/hi";
-import {
-  Link,
-  NavLink,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
-
+import { HiMenu, HiX } from "react-icons/hi";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
-import "./Navbar.css";
 
-/* =========================================================
-   PUBLIC NAVIGATION LINKS
-========================================================= */
-
-const PUBLIC_LINKS = [
+const LINKS = [
   { label: "Home", to: "/" },
   { label: "About", to: "/#about" },
   { label: "Features", to: "/#features" },
@@ -28,43 +12,28 @@ const PUBLIC_LINKS = [
   { label: "Contact", to: "/#contact" },
 ];
 
-/* =========================================================
-   LOGGED-IN NAVIGATION LINKS
-========================================================= */
-
-const USER_LINKS = [
-  { label: "Home", to: "/" },
-  { label: "Dashboard", to: "/dashboard" },
-];
-
-/* =========================================================
-   NAVBAR
-========================================================= */
-
 export default function Navbar() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
 
-  /* =======================================================
-     CHECK LOGIN STATUS
-  ======================================================= */
+  const navigate = useNavigate();
+  const location = useLocation();
 
+  // ---------------------------------------
+  // CHECK LOGIN STATUS
+  // ---------------------------------------
   const checkLoginStatus = () => {
-    const storedUser = localStorage.getItem("user");
-
-    if (!storedUser) {
-      setIsLoggedIn(false);
-      setUser(null);
-      return;
-    }
-
     try {
+      const storedUser = localStorage.getItem("user");
+
+      if (!storedUser) {
+        setIsLoggedIn(false);
+        setUser(null);
+        return;
+      }
+
       const parsedUser = JSON.parse(storedUser);
 
       if (parsedUser?.isLoggedIn === true) {
@@ -75,442 +44,260 @@ export default function Navbar() {
         setUser(null);
       }
     } catch (error) {
-      console.error("Invalid user data:", error);
-
+      console.error("Unable to read logged-in user:", error);
       setIsLoggedIn(false);
       setUser(null);
     }
   };
 
-  /* =======================================================
-     EFFECTS
-  ======================================================= */
-
+  // ---------------------------------------
+  // INITIAL LOGIN CHECK + AUTH LISTENER
+  // ---------------------------------------
   useEffect(() => {
-    /*
-      Check login status when Navbar first loads.
-    */
     checkLoginStatus();
 
-    /*
-      Detect page scrolling.
-    */
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 24);
-    };
+    // Fires when login/signup/logout happens
+    window.addEventListener("authChanged", checkLoginStatus);
 
-    window.addEventListener("scroll", handleScroll);
-
-    /*
-      Listen for login/signup/logout.
-    */
-    window.addEventListener(
-      "authChanged",
-      checkLoginStatus
-    );
+    // Fires when localStorage changes in another tab
+    window.addEventListener("storage", checkLoginStatus);
 
     return () => {
-      window.removeEventListener(
-        "scroll",
-        handleScroll
-      );
-
-      window.removeEventListener(
-        "authChanged",
-        checkLoginStatus
-      );
+      window.removeEventListener("authChanged", checkLoginStatus);
+      window.removeEventListener("storage", checkLoginStatus);
     };
   }, []);
 
-  /* =======================================================
-     CLOSE MOBILE MENU
-  ======================================================= */
+  // ---------------------------------------
+  // SCROLL
+  // ---------------------------------------
+  useEffect(() => {
+    const onScroll = () => {
+      setScrolled(window.scrollY > 24);
+    };
 
-  const closeMenu = () => {
+    window.addEventListener("scroll", onScroll);
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
+  // ---------------------------------------
+  // CLOSE MOBILE MENU WHEN ROUTE CHANGES
+  // ---------------------------------------
+  useEffect(() => {
     setOpen(false);
-  };
+  }, [location.pathname]);
 
-  /* =======================================================
-     VERIFY MEDICINE NAVIGATION
-  ======================================================= */
-
+  // ---------------------------------------
+  // VERIFY MEDICINE
+  // ---------------------------------------
   const handleVerifyMedicine = () => {
-    closeMenu();
-
-    /*
-      If user is already logged in,
-      directly open Verify Medicine.
-    */
+    setOpen(false);
 
     if (isLoggedIn) {
       navigate("/verify");
-      return;
+    } else {
+      navigate("/login", {
+        state: { from: "/verify" },
+      });
     }
-
-    /*
-      If user is NOT logged in,
-      send them to Login.
-
-      The "from" state tells Login:
-
-      "The user originally wanted /verify."
-
-      Login will then redirect them back to /verify
-      after successful authentication.
-    */
-
-    navigate("/login", {
-      state: {
-        from: "/verify",
-      },
-    });
   };
 
-  /* =======================================================
-     LOGOUT
-  ======================================================= */
-
+  // ---------------------------------------
+  // LOGOUT
+  // ---------------------------------------
   const handleLogout = () => {
-    /*
-      Remove logged-in user.
-    */
     localStorage.removeItem("user");
 
-    /*
-      Update Navbar immediately.
-    */
+    // Remove auth-related backend/local tokens too
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("token_type");
+
     setIsLoggedIn(false);
     setUser(null);
     setOpen(false);
 
-    /*
-      Tell other components that authentication changed.
-    */
-    window.dispatchEvent(
-      new Event("authChanged")
-    );
+    // Tell the rest of the application
+    window.dispatchEvent(new Event("authChanged"));
 
-    /*
-      Return user to Home.
-    */
     navigate("/");
   };
 
-  /* =======================================================
-     NAVIGATION LINKS
-  ======================================================= */
-
-  const links = isLoggedIn
-    ? USER_LINKS
-    : PUBLIC_LINKS;
-
-  /* =======================================================
-     ACTIVE LINK CHECK
-  ======================================================= */
-
-  const isCurrentPath = (path) => {
-    if (path.includes("#")) {
+  // ---------------------------------------
+  // ACTIVE LINK
+  // ---------------------------------------
+  const isActive = (path) => {
+    if (path === "/") {
       return location.pathname === "/";
     }
 
     return location.pathname === path;
   };
 
-  /* =======================================================
-     RENDER
-  ======================================================= */
-
   return (
-    <header
-      className={`navbar ${
-        scrolled ? "navbar--scrolled" : ""
-      }`}
-    >
-
+    <header className={`navbar ${scrolled ? "navbar--scrolled" : ""}`}>
       <div className="container navbar__inner">
 
-        {/* =================================================
-            LOGO
-        ================================================== */}
-
-        <Link
-          to="/"
-          className="navbar__logo"
-          onClick={closeMenu}
-        >
-          <img
-            src={logo}
-            alt="MedGuard AI logo"
-          />
+        {/* Logo */}
+        <Link to="/" className="navbar__logo">
+          <img src={logo} alt="MedGuard AI logo" />
 
           <span>
             MedGuard <em>AI</em>
           </span>
         </Link>
 
-
-        {/* =================================================
-            DESKTOP NAVIGATION
-        ================================================== */}
-
+        {/* -------------------------------- */}
+        {/* DESKTOP NAVIGATION */}
+        {/* -------------------------------- */}
         <nav className="navbar__links">
 
-          {/* -------------------------------
-              HOME / OTHER LINKS
-          -------------------------------- */}
-
-          {links.map((link) => (
-            <NavLink
+          {LINKS.map((link) => (
+            <Link
               key={link.label}
               to={link.to}
-              onClick={closeMenu}
-              className={() =>
-                `navbar__link ${
-                  isCurrentPath(link.to)
-                    ? "navbar__link--active"
-                    : ""
-                }`
-              }
+              className={isActive(link.to) ? "active" : ""}
             >
               {link.label}
-            </NavLink>
+            </Link>
           ))}
 
-          {/* -------------------------------
-              VERIFY MEDICINE
-          -------------------------------- */}
-
+          {/* Verify Medicine */}
           <button
             type="button"
             className={`navbar__link navbar__verify-button ${
-              location.pathname === "/verify"
-                ? "navbar__link--active"
-                : ""
+              isActive("/verify") ? "active" : ""
             }`}
             onClick={handleVerifyMedicine}
           >
             Verify Medicine
           </button>
 
+          {/* Dashboard only when logged in */}
+          {isLoggedIn && (
+            <Link
+              to="/dashboard"
+              className={isActive("/dashboard") ? "active" : ""}
+            >
+              Dashboard
+            </Link>
+          )}
         </nav>
 
-
-        {/* =================================================
-            DESKTOP ACTIONS
-        ================================================== */}
-
+        {/* -------------------------------- */}
+        {/* DESKTOP ACTIONS */}
+        {/* -------------------------------- */}
         <div className="navbar__actions">
 
-          {/* ===============================
-              LOGGED OUT
-          ================================ */}
-
-          {!isLoggedIn && (
+          {!isLoggedIn ? (
             <>
-              <Link
-                to="/login"
-                className="btn btn-ghost"
-              >
+              <Link to="/login" className="btn btn-ghost">
                 Login
               </Link>
 
-              <Link
-                to="/signup"
-                className="btn btn-primary"
-              >
+              <Link to="/signup" className="btn btn-primary">
                 Sign Up
               </Link>
             </>
-          )}
-
-
-          {/* ===============================
-              LOGGED IN
-          ================================ */}
-
-          {isLoggedIn && (
+          ) : (
             <>
-              {/* User Dashboard */}
-
-              <motion.button
-                type="button"
+              <Link
+                to="/dashboard"
                 className="navbar__user"
-                onClick={() =>
-                  navigate("/dashboard")
-                }
-                aria-label="Open User Dashboard"
-                title="User Dashboard"
-                whileHover={{
-                  scale: 1.03,
-                }}
-                whileTap={{
-                  scale: 0.97,
-                }}
+                title="Open Dashboard"
               >
-                <HiOutlineUserCircle
-                  size={25}
-                />
+                <span className="navbar__user-icon">👤</span>
 
-                <span>
+                <span className="navbar__user-name">
                   {user?.name || "User"}
                 </span>
-              </motion.button>
+              </Link>
 
-
-              {/* Logout */}
-
-              <motion.button
+              <button
                 type="button"
-                className="navbar__logout"
+                className="btn btn-ghost navbar__logout"
                 onClick={handleLogout}
-                whileHover={{
-                  scale: 1.03,
-                }}
-                whileTap={{
-                  scale: 0.97,
-                }}
               >
-                <HiOutlineLogout
-                  size={20}
-                />
-
-                <span>
-                  Logout
-                </span>
-              </motion.button>
+                Logout
+              </button>
             </>
           )}
 
         </div>
 
-
-        {/* =================================================
-            MOBILE MENU BUTTON
-        ================================================== */}
-
+        {/* -------------------------------- */}
+        {/* MOBILE MENU BUTTON */}
+        {/* -------------------------------- */}
         <button
-          type="button"
           className="navbar__burger"
-          aria-label={
-            open
-              ? "Close menu"
-              : "Open menu"
-          }
-          aria-expanded={open}
-          onClick={() =>
-            setOpen((value) => !value)
-          }
+          aria-label={open ? "Close menu" : "Open menu"}
+          onClick={() => setOpen((value) => !value)}
         >
-          {open ? (
-            <HiX size={24} />
-          ) : (
-            <HiMenu size={24} />
-          )}
+          {open ? <HiX size={24} /> : <HiMenu size={24} />}
         </button>
-
       </div>
 
-
-      {/* =================================================
-          MOBILE MENU
-      ================================================== */}
-
+      {/* -------------------------------- */}
+      {/* MOBILE MENU */}
+      {/* -------------------------------- */}
       <AnimatePresence>
-
         {open && (
-
           <motion.div
             className="navbar__mobile"
-
-            initial={{
-              height: 0,
-              opacity: 0,
-            }}
-
-            animate={{
-              height: "auto",
-              opacity: 1,
-            }}
-
-            exit={{
-              height: 0,
-              opacity: 0,
-            }}
-
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
             transition={{
               duration: 0.3,
-              ease: [
-                0.16,
-                1,
-                0.3,
-                1,
-              ],
+              ease: [0.16, 1, 0.3, 1],
             }}
           >
-
-            {/* =============================================
-                MOBILE NAVIGATION
-            ============================================== */}
-
             <nav>
 
-              {/* -------------------------------
-                  HOME / OTHER LINKS
-              -------------------------------- */}
-
-              {links.map((link) => (
-                <NavLink
+              {LINKS.map((link) => (
+                <Link
                   key={link.label}
                   to={link.to}
-                  onClick={closeMenu}
-                  className={() =>
-                    `navbar__mobile-link ${
-                      isCurrentPath(link.to)
-                        ? "navbar__mobile-link--active"
-                        : ""
-                    }`
-                  }
+                  onClick={() => setOpen(false)}
                 >
                   {link.label}
-                </NavLink>
+                </Link>
               ))}
 
-
-              {/* -------------------------------
-                  VERIFY MEDICINE
-              -------------------------------- */}
-
+              {/* Mobile Verify Medicine */}
               <button
                 type="button"
-                className={`navbar__mobile-link navbar__mobile-verify-button ${
-                  location.pathname === "/verify"
-                    ? "navbar__mobile-link--active"
-                    : ""
-                }`}
+                className="navbar__mobile-verify-button"
                 onClick={handleVerifyMedicine}
               >
                 Verify Medicine
               </button>
 
+              {/* Mobile Dashboard */}
+              {isLoggedIn && (
+                <Link
+                  to="/dashboard"
+                  onClick={() => setOpen(false)}
+                >
+                  Dashboard
+                </Link>
+              )}
+
             </nav>
 
-
-            {/* =============================================
-                MOBILE ACTIONS
-            ============================================== */}
-
+            {/* -------------------------------- */}
+            {/* MOBILE ACTIONS */}
+            {/* -------------------------------- */}
             <div className="navbar__mobile-actions">
 
-              {/* ===============================
-                  LOGGED OUT
-              ================================ */}
-
-              {!isLoggedIn && (
+              {!isLoggedIn ? (
                 <>
                   <Link
                     to="/login"
                     className="btn btn-secondary"
-                    onClick={closeMenu}
+                    onClick={() => setOpen(false)}
                   >
                     Login
                   </Link>
@@ -518,65 +305,35 @@ export default function Navbar() {
                   <Link
                     to="/signup"
                     className="btn btn-primary"
-                    onClick={closeMenu}
+                    onClick={() => setOpen(false)}
                   >
                     Sign Up
                   </Link>
                 </>
-              )}
-
-
-              {/* ===============================
-                  LOGGED IN
-              ================================ */}
-
-              {isLoggedIn && (
+              ) : (
                 <>
-                  {/* User Dashboard */}
-
-                  <button
-                    type="button"
-                    className="navbar__mobile-user"
-                    onClick={() => {
-                      closeMenu();
-                      navigate("/dashboard");
-                    }}
+                  <Link
+                    to="/dashboard"
+                    className="btn btn-secondary"
+                    onClick={() => setOpen(false)}
                   >
-                    <HiOutlineUserCircle
-                      size={23}
-                    />
-
-                    <span>
-                      {user?.name || "User"}
-                    </span>
-                  </button>
-
-
-                  {/* Logout */}
+                    👤 {user?.name || "Dashboard"}
+                  </Link>
 
                   <button
                     type="button"
-                    className="navbar__mobile-logout"
+                    className="btn btn-primary"
                     onClick={handleLogout}
                   >
-                    <HiOutlineLogout
-                      size={21}
-                    />
-
-                    <span>
-                      Logout
-                    </span>
+                    Logout
                   </button>
                 </>
               )}
 
             </div>
-
           </motion.div>
         )}
-
       </AnimatePresence>
-
     </header>
   );
 }
