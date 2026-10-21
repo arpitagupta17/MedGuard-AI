@@ -6,135 +6,68 @@ import logo from "../assets/logo.png";
 
 const LINKS = [
   { label: "Home", to: "/" },
+  { label: "Verify Medicine", to: "/verify" },
   { label: "About", to: "/#about" },
   { label: "Features", to: "/#features" },
   { label: "How It Works", to: "/#how-it-works" },
   { label: "Contact", to: "/#contact" },
 ];
 
-export default function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState(null);
+// Reads the saved login (set by the login page)
+function readLogin() {
+  try {
+    if (!localStorage.getItem("access_token")) {
+      return { loggedIn: false, name: "" };
+    }
 
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+
+    return { loggedIn: true, name: user?.name || "" };
+  } catch {
+    return { loggedIn: false, name: "" };
+  }
+}
+
+export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ---------------------------------------
-  // CHECK LOGIN STATUS
-  // ---------------------------------------
-  const checkLoginStatus = () => {
-    try {
-      const storedUser = localStorage.getItem("user");
+  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [auth, setAuth] = useState(readLogin);
 
-      if (!storedUser) {
-        setIsLoggedIn(false);
-        setUser(null);
-        return;
-      }
-
-      const parsedUser = JSON.parse(storedUser);
-
-      if (parsedUser?.isLoggedIn === true) {
-        setIsLoggedIn(true);
-        setUser(parsedUser);
-      } else {
-        setIsLoggedIn(false);
-        setUser(null);
-      }
-    } catch (error) {
-      console.error("Unable to read logged-in user:", error);
-      setIsLoggedIn(false);
-      setUser(null);
-    }
-  };
-
-  // ---------------------------------------
-  // INITIAL LOGIN CHECK + AUTH LISTENER
-  // ---------------------------------------
   useEffect(() => {
-    checkLoginStatus();
-
-    // Fires when login/signup/logout happens
-    window.addEventListener("authChanged", checkLoginStatus);
-
-    // Fires when localStorage changes in another tab
-    window.addEventListener("storage", checkLoginStatus);
-
-    return () => {
-      window.removeEventListener("authChanged", checkLoginStatus);
-      window.removeEventListener("storage", checkLoginStatus);
-    };
-  }, []);
-
-  // ---------------------------------------
-  // SCROLL
-  // ---------------------------------------
-  useEffect(() => {
-    const onScroll = () => {
-      setScrolled(window.scrollY > 24);
-    };
+    const onScroll = () => setScrolled(window.scrollY > 24);
 
     window.addEventListener("scroll", onScroll);
 
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-    };
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // ---------------------------------------
-  // CLOSE MOBILE MENU WHEN ROUTE CHANGES
-  // ---------------------------------------
+  // Re-read the login after every page change (login / logout),
+  // and when another browser tab logs in or out
   useEffect(() => {
-    setOpen(false);
+    setAuth(readLogin());
   }, [location.pathname]);
 
-  // ---------------------------------------
-  // VERIFY MEDICINE
-  // ---------------------------------------
-  const handleVerifyMedicine = () => {
-    setOpen(false);
+  useEffect(() => {
+    const onStorage = () => setAuth(readLogin());
 
-    if (isLoggedIn) {
-      navigate("/verify");
-    } else {
-      navigate("/login", {
-        state: { from: "/verify" },
-      });
-    }
-  };
+    window.addEventListener("storage", onStorage);
 
-  // ---------------------------------------
-  // LOGOUT
-  // ---------------------------------------
-  const handleLogout = () => {
-    localStorage.removeItem("user");
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
-    // Remove auth-related backend/local tokens too
+  function handleLogout() {
     localStorage.removeItem("access_token");
-    localStorage.removeItem("token_type");
+    localStorage.removeItem("user");
+    localStorage.removeItem("rememberMe");
 
-    setIsLoggedIn(false);
-    setUser(null);
+    setAuth({ loggedIn: false, name: "" });
     setOpen(false);
 
-    // Tell the rest of the application
-    window.dispatchEvent(new Event("authChanged"));
-
-    navigate("/");
-  };
-
-  // ---------------------------------------
-  // ACTIVE LINK
-  // ---------------------------------------
-  const isActive = (path) => {
-    if (path === "/") {
-      return location.pathname === "/";
-    }
-
-    return location.pathname === path;
-  };
+    navigate("/login", { replace: true });
+  }
 
   return (
     <header className={`navbar ${scrolled ? "navbar--scrolled" : ""}`}>
@@ -143,55 +76,37 @@ export default function Navbar() {
         {/* Logo */}
         <Link to="/" className="navbar__logo">
           <img src={logo} alt="MedGuard AI logo" />
-
           <span>
             MedGuard <em>AI</em>
           </span>
         </Link>
 
-        {/* -------------------------------- */}
-        {/* DESKTOP NAVIGATION */}
-        {/* -------------------------------- */}
+        {/* Desktop Navigation */}
         <nav className="navbar__links">
-
-          {LINKS.map((link) => (
-            <Link
-              key={link.label}
-              to={link.to}
-              className={isActive(link.to) ? "active" : ""}
-            >
-              {link.label}
+          {LINKS.map((l) => (
+            <Link key={l.label} to={l.to}>
+              {l.label}
             </Link>
           ))}
-
-          {/* Verify Medicine */}
-          <button
-            type="button"
-            className={`navbar__link navbar__verify-button ${
-              isActive("/verify") ? "active" : ""
-            }`}
-            onClick={handleVerifyMedicine}
-          >
-            Verify Medicine
-          </button>
-
-          {/* Dashboard only when logged in */}
-          {isLoggedIn && (
-            <Link
-              to="/dashboard"
-              className={isActive("/dashboard") ? "active" : ""}
-            >
-              Dashboard
-            </Link>
-          )}
         </nav>
 
-        {/* -------------------------------- */}
-        {/* DESKTOP ACTIONS */}
-        {/* -------------------------------- */}
+        {/* Desktop Actions */}
         <div className="navbar__actions">
+          {auth.loggedIn ? (
+            <>
+              <Link to="/dashboard" className="btn btn-ghost">
+                {auth.name ? `Hi, ${auth.name.split(" ")[0]}` : "Dashboard"}
+              </Link>
 
-          {!isLoggedIn ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </>
+          ) : (
             <>
               <Link to="/login" className="btn btn-ghost">
                 Login
@@ -201,47 +116,20 @@ export default function Navbar() {
                 Sign Up
               </Link>
             </>
-          ) : (
-            <>
-              <Link
-                to="/dashboard"
-                className="navbar__user"
-                title="Open Dashboard"
-              >
-                <span className="navbar__user-icon">👤</span>
-
-                <span className="navbar__user-name">
-                  {user?.name || "User"}
-                </span>
-              </Link>
-
-              <button
-                type="button"
-                className="btn btn-ghost navbar__logout"
-                onClick={handleLogout}
-              >
-                Logout
-              </button>
-            </>
           )}
-
         </div>
 
-        {/* -------------------------------- */}
-        {/* MOBILE MENU BUTTON */}
-        {/* -------------------------------- */}
+        {/* Mobile Menu Button */}
         <button
           className="navbar__burger"
           aria-label={open ? "Close menu" : "Open menu"}
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => setOpen((v) => !v)}
         >
           {open ? <HiX size={24} /> : <HiMenu size={24} />}
         </button>
       </div>
 
-      {/* -------------------------------- */}
-      {/* MOBILE MENU */}
-      {/* -------------------------------- */}
+      {/* Mobile Menu */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -255,44 +143,37 @@ export default function Navbar() {
             }}
           >
             <nav>
-
-              {LINKS.map((link) => (
+              {LINKS.map((l) => (
                 <Link
-                  key={link.label}
-                  to={link.to}
+                  key={l.label}
+                  to={l.to}
                   onClick={() => setOpen(false)}
                 >
-                  {link.label}
+                  {l.label}
                 </Link>
               ))}
-
-              {/* Mobile Verify Medicine */}
-              <button
-                type="button"
-                className="navbar__mobile-verify-button"
-                onClick={handleVerifyMedicine}
-              >
-                Verify Medicine
-              </button>
-
-              {/* Mobile Dashboard */}
-              {isLoggedIn && (
-                <Link
-                  to="/dashboard"
-                  onClick={() => setOpen(false)}
-                >
-                  Dashboard
-                </Link>
-              )}
-
             </nav>
 
-            {/* -------------------------------- */}
-            {/* MOBILE ACTIONS */}
-            {/* -------------------------------- */}
             <div className="navbar__mobile-actions">
+              {auth.loggedIn ? (
+                <>
+                  <Link
+                    to="/dashboard"
+                    className="btn btn-secondary"
+                    onClick={() => setOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
 
-              {!isLoggedIn ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleLogout}
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
                 <>
                   <Link
                     to="/login"
@@ -310,26 +191,7 @@ export default function Navbar() {
                     Sign Up
                   </Link>
                 </>
-              ) : (
-                <>
-                  <Link
-                    to="/dashboard"
-                    className="btn btn-secondary"
-                    onClick={() => setOpen(false)}
-                  >
-                    👤 {user?.name || "Dashboard"}
-                  </Link>
-
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleLogout}
-                  >
-                    Logout
-                  </button>
-                </>
               )}
-
             </div>
           </motion.div>
         )}

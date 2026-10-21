@@ -846,3 +846,271 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ==========================================================================
+   Risk result (Low / Medium / High) and database checks
+   ========================================================================== */
+
+.result__icon--high {
+  background: var(--vf-red-tint);
+  color: var(--vf-red);
+}
+
+.risk-badge {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0 0 22px;
+}
+
+.risk-badge--low {
+  background: var(--vf-green-tint);
+  color: var(--vf-green-dark);
+}
+
+.risk-badge--medium {
+  background: var(--vf-amber-tint);
+  color: #92400e;
+}
+
+.risk-badge--high {
+  background: var(--vf-red-tint);
+  color: var(--vf-red-dark);
+}
+
+.risk-badge--unknown {
+  background: var(--vf-slate-tint);
+  color: var(--vf-navy-soft);
+}
+
+/* ring colour follows the risk level */
+.result--risk-medium .confidence-ring__value {
+  stroke: var(--vf-amber);
+}
+
+.result--risk-high .confidence-ring__value {
+  stroke: var(--vf-red);
+}
+
+.risk-caption {
+  margin: -14px 0 24px;
+  font-size: 0.8rem;
+  color: var(--vf-navy-soft);
+}
+
+.result__issues--high {
+  background: var(--vf-red-tint);
+}
+
+.result__issues--high ul {
+  color: var(--vf-red-dark);
+}
+
+.verify-checks {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  text-align: left;
+  border: 1px solid var(--vf-border);
+  border-radius: var(--vf-radius-md);
+  overflow: hidden;
+}
+
+.verify-checks__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--vf-border);
+  font-size: 0.92rem;
+  color: var(--vf-navy);
+}
+
+.verify-checks__item:last-child {
+  border-bottom: none;
+}
+
+.verify-checks__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.verify-checks__item--pass .verify-checks__icon {
+  background: var(--vf-green-tint);
+  color: var(--vf-green-dark);
+}
+
+.verify-checks__item--fail .verify-checks__icon {
+  background: var(--vf-red-tint);
+  color: var(--vf-red-dark);
+}
+
+.verify-checks__item--skip .verify-checks__icon {
+  background: var(--vf-slate-tint);
+  color: var(--vf-navy-soft);
+}
+
+.verify-checks__state {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--vf-navy-soft);
+}
+
+.verify-checks__item--fail .verify-checks__state {
+  color: var(--vf-red-dark);
+  font-weight: 600;
+}
+
+.risk-fields {
+  margin: 0 0 20px;
+  font-size: 0.82rem;
+  color: var(--vf-navy-soft);
+}
+
+/* ==========================================================================
+   Verdict text and "What to do next" box
+   ========================================================================== */
+
+.result__verdict-text {
+  max-width: 46ch;
+  margin: -8px auto 20px;
+  color: var(--vf-navy-soft);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.next-steps {
+  text-align: left;
+  background: var(--vf-white);
+  border: 1px solid var(--vf-border);
+  border-left: 4px solid var(--vf-navy-soft);
+  border-radius: var(--vf-radius-md);
+  padding: 16px 20px;
+  margin: 0 0 24px;
+}
+
+.next-steps--low {
+  border-left-color: var(--vf-green);
+}
+
+.next-steps--medium {
+  border-left-color: var(--vf-amber);
+}
+
+.next-steps--high {
+  border-left-color: var(--vf-red);
+}
+
+.next-steps__title {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--vf-navy);
+}
+
+.next-steps ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--vf-navy);
+}
+
+/* ==========================================================================
+   Report Medicine dialog
+   ========================================================================== */
+
+.report-modal__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 37, 64, 0.55);
+}
+
+.report-modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  border-radius: var(--vf-radius-md, 14px);
+  background: var(--vf-white, #fff);
+  box-shadow: 0 20px 50px rgba(15, 37, 64, 0.25);
+}
+
+.report-modal__title {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  color: var(--vf-navy, #0f2540);
+}
+
+.report-modal__text {
+  margin: 0 0 16px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--vf-navy-soft, #4a5b72);
+}
+
+.report-modal__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--vf-navy, #0f2540);
+}
+
+.report-modal__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--vf-border, #e3e9f2);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--vf-navy, #0f2540);
+  resize: vertical;
+}
+
+.report-modal__textarea:focus {
+  outline: 2px solid var(--vf-blue, #2563eb);
+  outline-offset: 1px;
+}
+
+.report-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+
+/* ===== Result lists and comparison table ===== */
+.result__lists { display: grid; gap: 10px; margin: 14px 0; text-align: left; }
+.result__list { border-radius: 12px; padding: 10px 14px; font-size: 0.9rem; }
+.result__list ul { margin: 6px 0 0; padding-left: 18px; }
+.result__list-title { margin: 0; font-weight: 700; }
+.result__list--fail { background: #fdecea; color: #8a2b22; }
+.result__list--warn { background: #fff6e0; color: #7a5200; }
+
+.compare-wrap { overflow-x: auto; }
+.compare-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.compare-table th, .compare-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+.compare-table th { font-weight: 700; color: #475569; }
+.compare-row--pass td:last-child { color: #17825a; font-weight: 600; }
+.compare-row--fail td:last-child { color: #a83c31; font-weight: 600; }
+.compare-row--skip td:last-child { color: #64748b; }
+.compare-note { margin: 8px 0 0; font-size: 0.8rem; color: #64748b; }

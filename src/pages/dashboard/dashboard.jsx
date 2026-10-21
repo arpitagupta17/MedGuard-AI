@@ -1,263 +1,89 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-
 import {
-  HiOutlineHome,
   HiOutlineSearch,
   HiOutlineClipboardList,
-  HiOutlineChartBar,
-  HiOutlineCog,
-  HiOutlineLogout,
-  HiOutlineBell,
-  HiOutlineChevronDown,
-  HiOutlineCamera,
-  HiOutlineUpload,
   HiOutlineShieldCheck,
   HiOutlineExclamation,
   HiOutlineCheckCircle,
-  HiOutlineX,
-  HiOutlineMenu,
-  HiOutlineUser,
+  HiOutlineCamera,
+  HiOutlineUpload,
+  HiOutlineClock,
 } from "react-icons/hi";
-
 import { motion } from "framer-motion";
-
-import Footer from "../../components/Footer";
-
+import DashboardLayout, { useDashboardData } from "../../components/DashboardLayout";
 import "./dashboard.css";
 
-
-/* --------------------------------------------------------------------- */
-/* Static configuration                                                  */
-/* --------------------------------------------------------------------- */
-
-const NAV_ITEMS = [
-  {
-    key: "dashboard",
-    label: "Dashboard",
-    path: "/dashboard",
-    icon: HiOutlineHome,
-  },
-  {
-    key: "verify",
-    label: "Verify Medicine",
-    path: "/verify",
-    icon: HiOutlineSearch,
-  },
-  {
-    key: "medicines",
-    label: "My Medicines",
-    path: "/medicines",
-    icon: HiOutlineShieldCheck,
-  },
-  {
-    key: "history",
-    label: "History",
-    path: "/history",
-    icon: HiOutlineClipboardList,
-  },
-  {
-    key: "reports",
-    label: "Reports",
-    path: "/reports",
-    icon: HiOutlineChartBar,
-  },
-  {
-    key: "settings",
-    label: "Settings",
-    path: "/settings",
-    icon: HiOutlineCog,
-  },
-];
-
-
-/* --------------------------------------------------------------------- */
-/* Demo dashboard data                                                   */
-/* Replace with backend API data later                                   */
-/* --------------------------------------------------------------------- */
-
-const STATS = [
-  {
-    key: "scanned",
-    label: "Total Scanned",
-    value: 24,
-    icon: HiOutlineSearch,
-    tone: "blue",
-  },
-  {
-    key: "authentic",
-    label: "Authentic Medicines",
-    value: 21,
-    icon: HiOutlineCheckCircle,
-    tone: "green",
-  },
-  {
-    key: "flagged",
-    label: "Flagged Medicines",
-    value: 3,
-    icon: HiOutlineExclamation,
-    tone: "amber",
-  },
-  {
-    key: "accuracy",
-    label: "Verification Accuracy",
-    value: "87.5%",
-    icon: HiOutlineShieldCheck,
-    tone: "blue",
-  },
-];
-
-
-const RECENT_VERIFICATIONS = [
-  {
-    id: 1,
-    medicine: "Paracetamol",
-    result: "genuine",
-    confidence: 96,
-    date: "Today",
-  },
-  {
-    id: 2,
-    medicine: "Amoxicillin",
-    result: "genuine",
-    confidence: 93,
-    date: "Yesterday",
-  },
-  {
-    id: 3,
-    medicine: "XYZ Tablet",
-    result: "flagged",
-    confidence: 72,
-    date: "Aug 28",
-  },
-];
-
-
-const QUICK_ACTIONS = [
-  {
-    key: "verify",
-    title: "Verify Medicine",
-    desc: "Start a new verification",
-    icon: HiOutlineSearch,
-    path: "/verify",
-  },
-  {
-    key: "medicines",
-    title: "My Medicines",
-    desc: "Manage your saved medicines",
-    icon: HiOutlineShieldCheck,
-    path: "/medicines",
-  },
-  {
-    key: "history",
-    title: "View History",
-    desc: "See previous results",
-    icon: HiOutlineClipboardList,
-    path: "/history",
-  },
-  {
-    key: "reports",
-    title: "View Reports",
-    desc: "Analyze your verification activity",
-    icon: HiOutlineChartBar,
-    path: "/reports",
-  },
-];
-
-
-const RECENT_ACTIVITY = [
-  {
-    id: 1,
-    text: "Paracetamol verified",
-    time: "Today, 10:42 AM",
-    status: "ok",
-  },
-  {
-    id: 2,
-    text: "Amoxicillin verified",
-    time: "Yesterday, 4:18 PM",
-    status: "ok",
-  },
-  {
-    id: 3,
-    text: "XYZ Tablet flagged",
-    time: "Aug 28, 2:30 PM",
-    status: "warn",
-  },
-];
-
-
 const BADGE_CONFIG = {
-  genuine: {
-    label: "Genuine",
-    icon: "✓",
-    className: "mg-badge--genuine",
-  },
-
-  flagged: {
-    label: "Flagged",
-    icon: "⚠",
-    className: "mg-badge--flagged",
-  },
-
-  suspicious: {
-    label: "Suspicious",
-    icon: "⚠",
-    className: "mg-badge--suspicious",
-  },
+  genuine: { label: "Likely genuine", icon: "✓", className: "mg-badge--genuine" },
+  flagged: { label: "Flagged", icon: "⚠", className: "mg-badge--flagged" },
+  unverified: { label: "Could not verify", icon: "?", className: "mg-badge--unverified" },
 };
 
+const TIPS = [
+  "Photograph the side of the pack that shows the batch number and the dates.",
+  "Use good light and hold the camera steady so the small print is sharp.",
+  "A match is evidence, not proof. If a pack looks wrong, ask your pharmacist.",
+];
 
-/* --------------------------------------------------------------------- */
-/* Helper functions                                                       */
-/* --------------------------------------------------------------------- */
+/* ---------------------------- helpers ---------------------------- */
 
-function initialsFromName(name) {
-  if (!name) {
-    return "U";
+function readName() {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    if (!user) return "there";
+    const name = user.name || user.full_name || user.fullName || user.username;
+    if (name) return String(name).split(" ")[0];
+    if (user.email) return String(user.email).split("@")[0];
+  } catch {
+    /* ignore */
   }
-
-  const parts = name.trim().split(" ").filter(Boolean);
-
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-
-  return (
-    parts[0][0] +
-    parts[1][0]
-  ).toUpperCase();
+  return "there";
 }
 
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+function withStrength(name, strength) {
+  const base = name || "Unnamed pack";
+  if (!strength) return base;
+  const compact = (s) => String(s).toLowerCase().replace(/\s+/g, "");
+  return compact(base).includes(compact(strength)) ? base : `${base} ${strength}`;
+}
+
+// "2027-11" -> months from now (negative = already expired); null if unreadable
+function monthsLeft(expiry) {
+  const match = /^(\d{4})-(\d{1,2})/.exec(String(expiry || ""));
+  if (!match) return null;
+  const now = new Date();
+  return (Number(match[1]) - now.getFullYear()) * 12 + (Number(match[2]) - (now.getMonth() + 1));
+}
 
 function ResultBadge({ result }) {
-  const config =
-    BADGE_CONFIG[result] ||
-    BADGE_CONFIG.suspicious;
-
+  const config = BADGE_CONFIG[result] || BADGE_CONFIG.unverified;
   return (
-    <span
-      className={`mg-badge ${config.className}`}
-    >
-      <span aria-hidden="true">
-        {config.icon}
-      </span>
-
+    <span className={`mg-badge ${config.className}`}>
+      <span aria-hidden="true">{config.icon}</span>
       {config.label}
     </span>
   );
 }
 
-
-function AccuracyRing({ percent }) {
+function ProgressRing({ percent }) {
   const radius = 30;
-
-  const circumference =
-    2 * Math.PI * radius;
-
-  const offset =
-    circumference -
-    (percent / 100) * circumference;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percent / 100) * circumference;
 
   return (
     <svg
@@ -266,17 +92,9 @@ function AccuracyRing({ percent }) {
       height="76"
       viewBox="0 0 76 76"
       role="img"
-      aria-label={`${percent} percent genuine`}
+      aria-label={`${percent} percent likely genuine`}
     >
-      <circle
-        cx="38"
-        cy="38"
-        r={radius}
-        fill="none"
-        stroke="var(--mg-surface-alt)"
-        strokeWidth="8"
-      />
-
+      <circle cx="38" cy="38" r={radius} fill="none" stroke="var(--mg-surface-alt)" strokeWidth="8" />
       <circle
         cx="38"
         cy="38"
@@ -293,1309 +111,279 @@ function AccuracyRing({ percent }) {
   );
 }
 
+/* ---------------------------- page ---------------------------- */
 
-/* --------------------------------------------------------------------- */
-/* Dashboard                                                             */
-/* --------------------------------------------------------------------- */
-
-export default function Dashboard() {
-
+function DashboardContent() {
   const navigate = useNavigate();
-
-  const [user, setUser] = useState(null);
-
-  const [sidebarOpen, setSidebarOpen] =
-    useState(false);
-
-  const [profileOpen, setProfileOpen] =
-    useState(false);
-
-  const [notificationsOpen, setNotificationsOpen] =
-    useState(false);
-
-  const [checkingAuth, setCheckingAuth] =
-    useState(true);
-
-  const profileRef = useRef(null);
-
-  const notificationsRef = useRef(null);
-
-
-  /* ------------------------------------------------------------------- */
-  /* JWT authentication check                                            */
-  /* ------------------------------------------------------------------- */
-
-  useEffect(() => {
-
-    async function verifyUser() {
-
-      const token =
-        localStorage.getItem("access_token");
-
-      const storedUser =
-        JSON.parse(
-          localStorage.getItem("user") || "null"
-        );
-
-
-      if (!token) {
-
-        navigate("/login", {
-          replace: true,
-        });
-
-        return;
-      }
-
-
-      try {
-
-        const response = await fetch(
-          "http://127.0.0.1:8000/auth/me",
-          {
-            method: "GET",
-
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
-        );
-
-
-        if (!response.ok) {
-
-          localStorage.removeItem(
-            "access_token"
-          );
-
-          localStorage.removeItem(
-            "token_type"
-          );
-
-          localStorage.removeItem(
-            "user"
-          );
-
-          navigate("/login", {
-            replace: true,
-          });
-
-          return;
-        }
-
-
-        const backendUser =
-          await response.json();
-
-
-        const authenticatedUser = {
-
-          user_id:
-            backendUser.user_id,
-
-          name:
-            storedUser?.name ||
-            "User",
-
-          email:
-            backendUser.email ||
-            storedUser?.email ||
-            "",
-
-          isLoggedIn: true,
-        };
-
-
-        setUser(authenticatedUser);
-
-
-        localStorage.setItem(
-          "user",
-          JSON.stringify(
-            authenticatedUser
-          )
-        );
-
-      } catch (error) {
-
-        console.error(
-          "Authentication error:",
-          error
-        );
-
-
-        localStorage.removeItem(
-          "access_token"
-        );
-
-        localStorage.removeItem(
-          "token_type"
-        );
-
-        localStorage.removeItem(
-          "user"
-        );
-
-
-        navigate("/login", {
-          replace: true,
-        });
-
-      } finally {
-
-        setCheckingAuth(false);
-
-      }
-    }
-
-
-    verifyUser();
-
-  }, [navigate]);
-
-
-  /* ------------------------------------------------------------------- */
-  /* Close dropdowns when clicking outside                               */
-  /* ------------------------------------------------------------------- */
-
-  useEffect(() => {
-
-    function handleClickOutside(event) {
-
-      if (
-        profileRef.current &&
-        !profileRef.current.contains(
-          event.target
-        )
-      ) {
-
-        setProfileOpen(false);
-
-      }
-
-
-      if (
-        notificationsRef.current &&
-        !notificationsRef.current.contains(
-          event.target
-        )
-      ) {
-
-        setNotificationsOpen(false);
-
-      }
-    }
-
-
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
-
-
-    return () => {
-
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
-
-    };
-
-  }, []);
-
-
-  /* ------------------------------------------------------------------- */
-  /* User information                                                    */
-  /* ------------------------------------------------------------------- */
-
-  const displayName =
-    user?.name || "User";
-
-
-  const initials =
-    useMemo(
-      () =>
-        initialsFromName(
-          displayName
-        ),
-      [displayName]
-    );
-
-
-  const hasHistory =
-    RECENT_VERIFICATIONS.length > 0;
-
-
-  /* ------------------------------------------------------------------- */
-  /* Logout                                                              */
-  /* ------------------------------------------------------------------- */
-
-  function handleLogout() {
-
-    localStorage.removeItem(
-      "access_token"
-    );
-
-    localStorage.removeItem(
-      "token_type"
-    );
-
-    localStorage.removeItem(
-      "user"
-    );
-
-    navigate("/login", {
-      replace: true,
+  const { history: allHistory, loading, error } = useDashboardData();
+
+  // Only checks that produced a clear result are counted here
+  const history = useMemo(
+    () => allHistory.filter((row) => row.result === "genuine" || row.result === "flagged"),
+    [allHistory]
+  );
+
+  const summary = useMemo(() => {
+    const total = history.length;
+    const genuine = history.filter((h) => h.result === "genuine").length;
+    const flagged = history.filter((h) => h.result === "flagged").length;
+
+    // Expiry of each pack the user has checked (latest check of each pack)
+    const seen = new Set();
+    let expired = 0;
+    let soon = 0;
+
+    history.forEach((row) => {
+      const key = `${row.medicine}|${row.batch_number}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const left = monthsLeft(row.expiry_date);
+      if (left === null) return;
+      if (left < 0) expired += 1;
+      else if (left <= 2) soon += 1;
     });
-  }
 
+    return {
+      total,
+      genuine,
+      flagged,
+      expired,
+      soon,
+      genuinePercent: total ? Math.round((genuine / total) * 100) : 0,
+    };
+  }, [history]);
 
-  /* ------------------------------------------------------------------- */
-  /* Navigation                                                           */
-  /* ------------------------------------------------------------------- */
+  const recent = history.slice(0, 5);
+  const hasHistory = recent.length > 0;
+  const needsAttention = summary.flagged + summary.expired + summary.soon > 0;
 
-  function goTo(path) {
-
-    setSidebarOpen(false);
-
-    setProfileOpen(false);
-
-    setNotificationsOpen(false);
-
-    navigate(path);
-  }
-
-
-  /* ------------------------------------------------------------------- */
-  /* Authentication loading screen                                       */
-  /* ------------------------------------------------------------------- */
-
-  if (checkingAuth) {
-
-    return (
-      <div className="mg-auth-loading">
-
-        <div className="mg-auth-loading__content">
-
-          <span className="mg-auth-loading__icon">
-            <HiOutlineShieldCheck />
-          </span>
-
-          <p>
-            Checking authentication...
-          </p>
-
-        </div>
-
-      </div>
-    );
-  }
-
-
-  /* ------------------------------------------------------------------- */
-  /* Dashboard UI                                                         */
-  /* ------------------------------------------------------------------- */
+  const stats = [
+    { key: "total", label: "Checks done", value: summary.total, icon: HiOutlineSearch, tone: "blue", to: "/history" },
+    { key: "genuine", label: "Likely genuine", value: summary.genuine, icon: HiOutlineCheckCircle, tone: "green", to: "/history" },
+    { key: "flagged", label: "Flagged", value: summary.flagged, icon: HiOutlineExclamation, tone: "amber", to: "/history" },
+    { key: "expiring", label: "Expired or expiring", value: summary.expired + summary.soon, icon: HiOutlineClock, tone: "amber", to: "/medicines" },
+  ];
 
   return (
+    <motion.main
+      className="mg-content"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      {/* Welcome */}
+      <section className="mg-welcome">
+        <h2 className="mg-welcome__title">
+          {greeting()}, {readName()} 👋
+        </h2>
+        <p className="mg-welcome__subtitle">
+          Check a medicine pack in a few seconds, and keep track of what needs your attention.
+        </p>
+      </section>
 
-    <div className="mg-dashboard">
-
-      {sidebarOpen && (
-
-        <div
-          className="mg-sidebar-overlay"
-          onClick={() =>
-            setSidebarOpen(false)
-          }
-          aria-hidden="true"
-        />
-
+      {error && (
+        <p className="mg-load-error" role="alert">
+          {error}
+        </p>
       )}
 
-
-      {/* ============================================================= */}
-      {/* Sidebar                                                        */}
-      {/* ============================================================= */}
-
-      <aside
-        className={`mg-sidebar ${
-          sidebarOpen ? "is-open" : ""
-        }`}
-        aria-label="Primary navigation"
-      >
-
-        <button
-          type="button"
-          className="mg-sidebar__close"
-          onClick={() =>
-            setSidebarOpen(false)
-          }
-          aria-label="Close menu"
-        >
-          <HiOutlineX />
-        </button>
-
-
-        {/* Brand */}
-
-        <div className="mg-sidebar__brand">
-
-          <span
-            className="mg-sidebar__brand-mark"
-            aria-hidden="true"
-          >
-            <HiOutlineShieldCheck />
+      {/* Needs attention */}
+      {!loading && !error && hasHistory && needsAttention && (
+        <section className="mg-attention" aria-label="Needs your attention">
+          <span className="mg-attention__icon" aria-hidden="true">
+            <HiOutlineExclamation />
           </span>
-
-          <span className="mg-sidebar__brand-name">
-            MedGuard AI
-          </span>
-
-        </div>
-
-
-        {/* Navigation */}
-
-        <nav className="mg-sidebar__nav">
-
-          {NAV_ITEMS.map((item) => {
-
-            const Icon = item.icon;
-
-            const isActive =
-              item.key === "dashboard";
-
-
-            return (
-
-              <button
-                key={item.key}
-                type="button"
-                className={`mg-nav-item ${
-                  isActive
-                    ? "is-active"
-                    : ""
-                }`}
-                onClick={() =>
-                  goTo(item.path)
-                }
-                aria-current={
-                  isActive
-                    ? "page"
-                    : undefined
-                }
-              >
-
-                <Icon
-                  aria-hidden="true"
-                />
-
-                {item.label}
-
-              </button>
-
-            );
-
-          })}
-
-        </nav>
-
-
-        {/* Sidebar logout */}
-
-        <div className="mg-sidebar__footer">
-
-          <button
-            type="button"
-            className="mg-nav-item mg-nav-item--logout"
-            onClick={handleLogout}
-          >
-
-            <HiOutlineLogout
-              aria-hidden="true"
-            />
-
-            Logout
-
+          <div className="mg-attention__body">
+            <p className="mg-attention__title">Needs your attention</p>
+            <ul>
+              {summary.flagged > 0 && (
+                <li>
+                  {summary.flagged} {summary.flagged === 1 ? "check was" : "checks were"} flagged. Do not use
+                  those medicines until a pharmacist has checked them.
+                </li>
+              )}
+              {summary.expired > 0 && (
+                <li>
+                  {summary.expired} {summary.expired === 1 ? "pack is" : "packs are"} past the expiry date.
+                </li>
+              )}
+              {summary.soon > 0 && (
+                <li>
+                  {summary.soon} {summary.soon === 1 ? "pack expires" : "packs expire"} within 2 months.
+                </li>
+              )}
+            </ul>
+          </div>
+          <button type="button" className="mg-btn mg-btn--primary" onClick={() => navigate("/medicines")}>
+            Review my medicines
           </button>
+        </section>
+      )}
 
+      {/* Verify + progress */}
+      <section className="mg-grid-2">
+        <div className="mg-verify-card">
+          <span className="mg-verify-card__ring" aria-hidden="true" />
+          <span className="mg-verify-card__ring mg-verify-card__ring--2" aria-hidden="true" />
+
+          <div className="mg-verify-card__top">
+            <span className="mg-verify-card__eyebrow">
+              <HiOutlineShieldCheck aria-hidden="true" /> Takes about a minute
+            </span>
+            <h3 className="mg-verify-card__title">Check a medicine</h3>
+            <p className="mg-verify-card__subtitle">
+              Take a photo of the pack, or upload one. We read the name, batch and dates and compare them
+              with our records.
+            </p>
+          </div>
+
+          <div className="mg-verify-card__actions">
+            <button type="button" className="mg-btn mg-btn--primary-light" onClick={() => navigate("/verify")}>
+              <HiOutlineCamera aria-hidden="true" /> Scan with camera
+            </button>
+            <button type="button" className="mg-btn mg-btn--ghost-light" onClick={() => navigate("/verify")}>
+              <HiOutlineUpload aria-hidden="true" /> Upload a photo
+            </button>
+          </div>
         </div>
 
-      </aside>
-
-
-      {/* ============================================================= */}
-      {/* Main column                                                     */}
-      {/* ============================================================= */}
-
-      <div className="mg-main">
-
-
-        {/* =========================================================== */}
-        {/* Header                                                       */}
-        {/* =========================================================== */}
-
-        <header className="mg-header">
-
-          <div className="mg-header__left">
-
-            <button
-              type="button"
-              className="mg-header__menu-btn"
-              onClick={() =>
-                setSidebarOpen(true)
-              }
-              aria-label="Open menu"
-            >
-              <HiOutlineMenu />
-            </button>
-
-            <h1 className="mg-header__title">
-              Dashboard
-            </h1>
-
-          </div>
-
-
-          <div className="mg-header__right">
-
-
-            {/* Notifications */}
-
-            <div
-              className="mg-notifications"
-              ref={notificationsRef}
-            >
-
-              <button
-                type="button"
-                className="mg-icon-btn"
-                aria-label="Notifications"
-                aria-expanded={
-                  notificationsOpen
-                }
-                onClick={() =>
-                  setNotificationsOpen(
-                    (open) => !open
-                  )
-                }
-              >
-
-                <HiOutlineBell />
-
-                <span
-                  className="mg-icon-btn__dot"
-                  aria-hidden="true"
-                />
-
-              </button>
-
-
-              {notificationsOpen && (
-
-                <div className="mg-notifications__dropdown">
-
-                  <div className="mg-notifications__head">
-
-                    <strong>
-                      Notifications
-                    </strong>
-
-                    <span>
-                      3 new
-                    </span>
-
-                  </div>
-
-
-                  <div className="mg-notification mg-notification--warning">
-
-                    <span>
-                      ⚠️
-                    </span>
-
-                    <div>
-
-                      <strong>
-                        Medicine flagged
-                      </strong>
-
-                      <p>
-                        XYZ Tablet requires further verification.
-                      </p>
-
-                      <small>
-                        Today
-                      </small>
-
-                    </div>
-
-                  </div>
-
-
-                  <div className="mg-notification mg-notification--success">
-
-                    <span>
-                      ✓
-                    </span>
-
-                    <div>
-
-                      <strong>
-                        Verification completed
-                      </strong>
-
-                      <p>
-                        Paracetamol was successfully screened.
-                      </p>
-
-                      <small>
-                        Today
-                      </small>
-
-                    </div>
-
-                  </div>
-
-
-                  <div className="mg-notification">
-
-                    <span>
-                      ⏳
-                    </span>
-
-                    <div>
-
-                      <strong>
-                        Expiry reminder
-                      </strong>
-
-                      <p>
-                        Vitamin D expires in 30 days.
-                      </p>
-
-                      <small>
-                        Yesterday
-                      </small>
-
-                    </div>
-
-                  </div>
-
-
-                  <button
-                    type="button"
-                    className="mg-notifications__all"
-                    onClick={() =>
-                      goTo("/settings")
-                    }
-                  >
-                    Notification settings
-                  </button>
-
-                </div>
-
-              )}
-
-            </div>
-
-
-            {/* Profile */}
-
-            <div
-              className="mg-profile"
-              ref={profileRef}
-            >
-
-              <button
-                type="button"
-                className="mg-profile__trigger"
-                onClick={() =>
-                  setProfileOpen(
-                    (open) => !open
-                  )
-                }
-                aria-haspopup="menu"
-                aria-expanded={
-                  profileOpen
-                }
-              >
-
-                <span
-                  className="mg-avatar"
-                  aria-hidden="true"
-                >
-                  {initials}
-                </span>
-
-
-                <span className="mg-profile__meta">
-
-                  <span className="mg-profile__name">
-                    {displayName}
-                  </span>
-
-                  <span className="mg-profile__badge">
-
-                    <HiOutlineCheckCircle
-                      aria-hidden="true"
-                    />
-
-                    Verified User
-
-                  </span>
-
-                </span>
-
-
-                <HiOutlineChevronDown
-                  className="mg-profile__chevron"
-                  aria-hidden="true"
-                />
-
-              </button>
-
-
-              {profileOpen && (
-
-                <div
-                  className="mg-profile__dropdown"
-                  role="menu"
-                >
-
-                  <button
-                    type="button"
-                    className="mg-profile__dropdown-item"
-                    role="menuitem"
-                    onClick={() =>
-                      goTo("/settings")
-                    }
-                  >
-
-                    <HiOutlineUser
-                      aria-hidden="true"
-                    />
-
-                    Profile
-
-                  </button>
-
-
-                  <button
-                    type="button"
-                    className="mg-profile__dropdown-item"
-                    role="menuitem"
-                    onClick={() =>
-                      goTo("/settings")
-                    }
-                  >
-
-                    <HiOutlineCog
-                      aria-hidden="true"
-                    />
-
-                    Settings
-
-                  </button>
-
-
-                  <div className="mg-profile__dropdown-divider" />
-
-
-                  <button
-                    type="button"
-                    className="mg-profile__dropdown-item mg-profile__dropdown-item--danger"
-                    role="menuitem"
-                    onClick={handleLogout}
-                  >
-
-                    <HiOutlineLogout
-                      aria-hidden="true"
-                    />
-
-                    Logout
-
-                  </button>
-
-                </div>
-
-              )}
-
-            </div>
-
-          </div>
-
-        </header>
-
-
-        {/* =========================================================== */}
-        {/* Main dashboard content                                       */}
-        {/* =========================================================== */}
-
-        <motion.main
-          className="mg-content"
-          initial={{
-            opacity: 0,
-            y: 8,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          transition={{
-            duration: 0.35,
-            ease: "easeOut",
-          }}
-        >
-
-
-          {/* --------------------------------------------------------- */}
-          {/* Welcome                                                    */}
-          {/* --------------------------------------------------------- */}
-
-          <section className="mg-welcome">
-
-            <h2 className="mg-welcome__title">
-              Welcome back, {displayName} 👋
-            </h2>
-
-            <p className="mg-welcome__subtitle">
-              Manage your medicines, verify new products,
-              and review your safety activity.
-            </p>
-
-          </section>
-
-
-          {/* --------------------------------------------------------- */}
-          {/* Stats                                                      */}
-          {/* --------------------------------------------------------- */}
-
-          <section
-            className="mg-stats"
-            aria-label="Verification statistics"
-          >
-
-            {STATS.map((stat, index) => {
-
-              const Icon = stat.icon;
-
-              return (
-
-                <motion.div
-                  key={stat.key}
-                  className="mg-stat-card"
-                  initial={{
-                    opacity: 0,
-                    y: 10,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                  }}
-                  transition={{
-                    duration: 0.3,
-                    delay: index * 0.05,
-                  }}
-                >
-
-                  <span
-                    className={`mg-stat-card__icon mg-stat-card__icon--${stat.tone}`}
-                    aria-hidden="true"
-                  >
-                    <Icon />
-                  </span>
-
-
-                  <span>
-
-                    <span className="mg-stat-card__value">
-                      {stat.value}
-                    </span>
-
-                    <span className="mg-stat-card__label">
-                      {stat.label}
-                    </span>
-
-                  </span>
-
-                </motion.div>
-
-              );
-
-            })}
-
-          </section>
-
-
-          {/* --------------------------------------------------------- */}
-          {/* Verify + Insight                                           */}
-          {/* --------------------------------------------------------- */}
-
-          <section className="mg-grid-2">
-
-
-            {/* Verify card */}
-
-            <div className="mg-verify-card">
-
-              <span
-                className="mg-verify-card__ring"
-                aria-hidden="true"
-              />
-
-              <span
-                className="mg-verify-card__ring mg-verify-card__ring--2"
-                aria-hidden="true"
-              />
-
-
-              <div className="mg-verify-card__top">
-
-                <span className="mg-verify-card__eyebrow">
-
-                  <HiOutlineShieldCheck
-                    aria-hidden="true"
-                  />
-
-                  AI-assisted screening
-
-                </span>
-
-
-                <h3 className="mg-verify-card__title">
-                  Verify a Medicine
-                </h3>
-
-
-                <p className="mg-verify-card__subtitle">
-                  Check whether a medicine is genuine
-                  or potentially counterfeit using your
-                  camera or a photo upload.
-                </p>
-
-              </div>
-
-
-              <div className="mg-verify-card__actions">
-
-                <button
-                  type="button"
-                  className="mg-btn mg-btn--ghost-light"
-                  onClick={() =>
-                    goTo("/verify")
-                  }
-                >
-
-                  <HiOutlineCamera
-                    aria-hidden="true"
-                  />
-
-                  Use Camera
-
-                </button>
-
-
-                <button
-                  type="button"
-                  className="mg-btn mg-btn--ghost-light"
-                  onClick={() =>
-                    goTo("/verify")
-                  }
-                >
-
-                  <HiOutlineUpload
-                    aria-hidden="true"
-                  />
-
-                  Upload Image
-
-                </button>
-
-
-                <button
-                  type="button"
-                  className="mg-btn mg-btn--primary-light"
-                  onClick={() =>
-                    goTo("/verify")
-                  }
-                >
-                  Verify Medicine
-                </button>
-
-              </div>
-
-            </div>
-
-
-            {/* Insight card */}
-
-            <div className="mg-insight-card">
-
-              <h3 className="mg-insight-card__heading">
-                Verification Insight
-              </h3>
-
-
-              <div className="mg-insight-ring">
-
-                <AccuracyRing
-                  percent={87.5}
-                />
-
-
-                <div>
-
-                  <div className="mg-insight-ring__value">
-                    87.5% Genuine
-                  </div>
-
-
-                  <p className="mg-insight-ring__caption">
-                    Most of your recent medicines
-                    have been verified as genuine.
-                  </p>
-
-                </div>
-
-              </div>
-
-
-              <p className="mg-insight-card__note">
-                AI-assisted screening result.
-                Results should be reviewed when necessary.
-              </p>
-
-            </div>
-
-          </section>
-
-
-          {/* --------------------------------------------------------- */}
-          {/* Recent verification                                       */}
-          {/* --------------------------------------------------------- */}
-
-          <section className="mg-section">
-
-            <div className="mg-section__head">
-
-              <h3 className="mg-section__title">
-                Recent Verification
-              </h3>
-
-
-              <button
-                type="button"
-                className="mg-section__link"
-                onClick={() =>
-                  goTo("/history")
-                }
-              >
-                View all
-              </button>
-
-            </div>
-
-
-            <div className="mg-panel">
-
-              {hasHistory ? (
-
-                <table className="mg-table">
-
-                  <thead>
-
-                    <tr>
-
-                      <th scope="col">
-                        Medicine
-                      </th>
-
-                      <th scope="col">
-                        Result
-                      </th>
-
-                      <th scope="col">
-                        Confidence
-                      </th>
-
-                      <th scope="col">
-                        Date
-                      </th>
-
-                    </tr>
-
-                  </thead>
-
-
-                  <tbody>
-
-                    {RECENT_VERIFICATIONS.map(
-                      (row) => (
-
-                        <tr key={row.id}>
-
-                          <td className="mg-table__medicine">
-                            {row.medicine}
-                          </td>
-
-
-                          <td>
-                            <ResultBadge
-                              result={row.result}
-                            />
-                          </td>
-
-
-                          <td className="mg-table__confidence">
-                            {row.confidence}%
-                          </td>
-
-
-                          <td>
-                            {row.date}
-                          </td>
-
-                        </tr>
-
-                      )
-                    )}
-
-                  </tbody>
-
-                </table>
-
-              ) : (
-
-                <div className="mg-empty-state">
-
-                  <span
-                    className="mg-empty-state__icon"
-                    aria-hidden="true"
-                  >
-                    <HiOutlineClipboardList />
-                  </span>
-
-
-                  <p className="mg-empty-state__title">
-                    No verification history yet.
-                  </p>
-
-
-                  <p className="mg-empty-state__subtitle">
-                    Verify your first medicine to see
-                    results here.
-                  </p>
-
-
-                  <button
-                    type="button"
-                    className="mg-btn mg-btn--primary"
-                    onClick={() =>
-                      goTo("/verify")
-                    }
-                  >
-                    Verify Medicine
-                  </button>
-
-                </div>
-
-              )}
-
-            </div>
-
-          </section>
-
-
-          {/* --------------------------------------------------------- */}
-          {/* Quick actions                                              */}
-          {/* --------------------------------------------------------- */}
-
-          <section className="mg-section">
-
-            <div className="mg-section__head">
-
-              <h3 className="mg-section__title">
-                Quick Actions
-              </h3>
-
-            </div>
-
-
-            <div className="mg-quick-actions">
-
-              {QUICK_ACTIONS.map(
-                (action) => {
-
-                  const Icon =
-                    action.icon;
-
-
-                  return (
-
-                    <button
-                      key={action.key}
-                      type="button"
-                      className="mg-quick-action"
-                      onClick={() =>
-                        goTo(action.path)
-                      }
-                    >
-
-                      <span
-                        className="mg-quick-action__icon"
-                        aria-hidden="true"
-                      >
-                        <Icon />
-                      </span>
-
-
-                      <span>
-
-                        <p className="mg-quick-action__title">
-                          {action.title}
-                        </p>
-
-
-                        <p className="mg-quick-action__desc">
-                          {action.desc}
-                        </p>
-
-                      </span>
-
-                    </button>
-
-                  );
-
-                }
-              )}
-
-            </div>
-
-          </section>
-
-
-          {/* --------------------------------------------------------- */}
-          {/* Recent activity                                            */}
-          {/* --------------------------------------------------------- */}
-
-          <section className="mg-section">
-
-            <div className="mg-section__head">
-
-              <h3 className="mg-section__title">
-                Recent Activity
-              </h3>
-
-            </div>
-
-
-            <div className="mg-panel">
-
-              <div className="mg-timeline">
-
-                {RECENT_ACTIVITY.map(
-                  (activity, index) => (
-
-                    <div
-                      className="mg-timeline__item"
-                      key={activity.id}
-                    >
-
-                      <div className="mg-timeline__rail">
-
-                        <span
-                          className={`mg-timeline__dot mg-timeline__dot--${
-                            activity.status === "warn"
-                              ? "warn"
-                              : "ok"
-                          }`}
-                          aria-hidden="true"
-                        >
-                          {activity.status === "warn"
-                            ? "⚠"
-                            : "✓"}
-                        </span>
-
-
-                        {index <
-                          RECENT_ACTIVITY.length - 1 && (
-                          <span className="mg-timeline__line" />
-                        )}
-
-                      </div>
-
-
-                      <div className="mg-timeline__body">
-
-                        <p className="mg-timeline__text">
-                          {activity.text}
-                        </p>
-
-
-                        <p className="mg-timeline__time">
-                          {activity.time}
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                  )
-                )}
-
-              </div>
-
-            </div>
-
-          </section>
-
-
-          {/* --------------------------------------------------------- */}
-          {/* Trust indicator                                            */}
-          {/* --------------------------------------------------------- */}
-
-          <div className="mg-trust">
-
-            <span
-              className="mg-trust__icon"
-              aria-hidden="true"
-            >
-              <HiOutlineShieldCheck />
-            </span>
-
-
+        <div className="mg-insight-card">
+          <h3 className="mg-insight-card__heading">Your results</h3>
+          <div className="mg-insight-ring">
+            <ProgressRing percent={summary.genuinePercent} />
             <div>
-
-              <p className="mg-trust__title">
-                MedGuard AI Verification
+              <div className="mg-insight-ring__value">{summary.genuinePercent}% matched</div>
+              <p className="mg-insight-ring__caption">
+                {summary.total === 0
+                  ? "Check your first medicine to see your results here."
+                  : `${summary.genuine} of your ${summary.total} checks matched our records.`}
               </p>
-
-
-              <p className="mg-trust__desc">
-                AI-assisted medicine screening.
-                Results should be reviewed when necessary
-                and do not guarantee authenticity.
-              </p>
-
             </div>
-
           </div>
+          <p className="mg-insight-card__note">
+            A match is evidence, not proof. Always ask a pharmacist if you are unsure.
+          </p>
+        </div>
+      </section>
 
+      {/* Stats */}
+      <section className="mg-stats" aria-label="Your numbers">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <motion.button
+              type="button"
+              key={stat.key}
+              className="mg-stat-card mg-stat-card--link"
+              onClick={() => navigate(stat.to)}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+            >
+              <span className={`mg-stat-card__icon mg-stat-card__icon--${stat.tone}`} aria-hidden="true">
+                <Icon />
+              </span>
+              <span>
+                <span className="mg-stat-card__value">{loading ? "…" : stat.value}</span>
+                <span className="mg-stat-card__label">{stat.label}</span>
+              </span>
+            </motion.button>
+          );
+        })}
+      </section>
 
-        </motion.main>
+      {/* Recent checks */}
+      <section className="mg-section">
+        <div className="mg-section__head">
+          <h3 className="mg-section__title">Recent checks</h3>
+          <button type="button" className="mg-section__link" onClick={() => navigate("/history")}>
+            View all
+          </button>
+        </div>
 
+        <div className="mg-panel">
+          {loading ? (
+            <div className="mg-empty-state">
+              <p className="mg-empty-state__title">Loading your checks…</p>
+            </div>
+          ) : hasHistory ? (
+            <ul className="mg-recent">
+              {recent.map((row) => (
+                <li key={row.id} className="mg-recent__item">
+                  <span
+                    className={`mg-recent__dot mg-recent__dot--${row.result === "genuine" ? "ok" : "warn"}`}
+                    aria-hidden="true"
+                  >
+                    {row.result === "genuine" ? "✓" : "⚠"}
+                  </span>
+                  <div className="mg-recent__main">
+                    <p className="mg-recent__name">{withStrength(row.medicine, row.strength)}</p>
+                    <p className="mg-recent__meta">
+                      {[row.batch_number && `Batch ${row.batch_number}`, row.expiry_date && `Expiry ${row.expiry_date}`]
+                        .filter(Boolean)
+                        .join(" · ") || "Details not read"}
+                    </p>
+                  </div>
+                  <div className="mg-recent__side">
+                    <ResultBadge result={row.result} />
+                    <span className="mg-recent__date">{formatDate(row.date)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mg-empty-state">
+              <span className="mg-empty-state__icon" aria-hidden="true">
+                <HiOutlineClipboardList />
+              </span>
+              <p className="mg-empty-state__title">No checks yet.</p>
+              <p className="mg-empty-state__subtitle">Check your first medicine and the result will appear here.</p>
+              <button type="button" className="mg-btn mg-btn--primary" onClick={() => navigate("/verify")}>
+                Check a medicine
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
 
-        {/* =========================================================== */}
-        {/* Footer                                                       */}
-        {/* =========================================================== */}
+      {/* Tips */}
+      <section className="mg-section">
+        <div className="mg-section__head">
+          <h3 className="mg-section__title">Tips for a good scan</h3>
+        </div>
+        <div className="mg-tips">
+          {TIPS.map((tip, index) => (
+            <div className="mg-tip" key={tip}>
+              <span className="mg-tip__num" aria-hidden="true">
+                {index + 1}
+              </span>
+              <p>{tip}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-        <Footer />
-
+      {/* Trust indicator */}
+      <div className="mg-trust">
+        <span className="mg-trust__icon" aria-hidden="true">
+          <HiOutlineShieldCheck />
+        </span>
+        <div>
+          <p className="mg-trust__title">MedGuard AI Verification</p>
+          <p className="mg-trust__desc">
+            AI-assisted medicine screening. Results should be reviewed when necessary and do not guarantee
+            authenticity.
+          </p>
+        </div>
       </div>
+    </motion.main>
+  );
+}
 
-    </div>
+export default function Dashboard() {
+  return (
+    <DashboardLayout title="Dashboard">
+      <DashboardContent />
+    </DashboardLayout>
   );
 }

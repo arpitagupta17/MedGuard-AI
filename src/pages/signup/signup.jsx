@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 
+import { useMemo, useState } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   HiOutlineUser,
   HiOutlineMail,
@@ -17,21 +17,25 @@ import logo from "../../assets/logo.png";
 import "./signup.css";
 
 
-/* -------------------------------------------------------------------------- */
-/* Constants                                                                  */
-/* -------------------------------------------------------------------------- */
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_PATTERN =
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const MIN_NAME_LENGTH = 2;
 
+// Address of the FastAPI backend (same one the login page uses)
+const API_BASE =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-/* -------------------------------------------------------------------------- */
-/* Password strength                                                          */
-/* -------------------------------------------------------------------------- */
+
+// ============================================================================
+// PASSWORD STRENGTH
+// ============================================================================
 
 function getPasswordStrength(password) {
-
   if (!password) {
     return {
       label: "",
@@ -69,14 +73,12 @@ function getPasswordStrength(password) {
     };
   }
 
-
   if (score <= 4) {
     return {
       label: "Medium",
       score: 2,
     };
   }
-
 
   return {
     label: "Strong",
@@ -85,12 +87,11 @@ function getPasswordStrength(password) {
 }
 
 
-/* -------------------------------------------------------------------------- */
-/* Password validation                                                        */
-/* -------------------------------------------------------------------------- */
+// ============================================================================
+// PASSWORD REQUIREMENTS
+// ============================================================================
 
 function meetsPasswordRequirements(password) {
-
   return (
     password.length >= 8 &&
     /[A-Z]/.test(password) &&
@@ -100,18 +101,74 @@ function meetsPasswordRequirements(password) {
 }
 
 
-/* -------------------------------------------------------------------------- */
-/* Signup Component                                                            */
-/* -------------------------------------------------------------------------- */
+// ============================================================================
+// REAL FASTAPI SIGNUP
+// ============================================================================
+
+async function createAccount(
+  name,
+  email,
+  password
+) {
+  const response = await fetch(
+    `${API_BASE}/auth/signup`,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+      }),
+    }
+  );
+
+
+  let data;
+
+
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      "The server returned an invalid response."
+    );
+  }
+
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail ||
+        "Unable to create your account. Please try again."
+    );
+  }
+
+
+  return data;
+}
+
+
+// ============================================================================
+// SIGNUP COMPONENT
+// ============================================================================
 
 export default function SignUp() {
 
   const navigate = useNavigate();
 
+  const location = useLocation();
 
-  /* ------------------------------------------------------------------------ */
-  /* Form state                                                               */
-  /* ------------------------------------------------------------------------ */
+  // Page the user wanted before being sent here (e.g. /verify)
+  const redirectTo = location.state?.from || "/dashboard";
+
+
+  // --------------------------------------------------------------------------
+  // FORM STATE
+  // --------------------------------------------------------------------------
 
   const [name, setName] = useState("");
 
@@ -123,9 +180,9 @@ export default function SignUp() {
     useState("");
 
 
-  /* ------------------------------------------------------------------------ */
-  /* UI state                                                                 */
-  /* ------------------------------------------------------------------------ */
+  // --------------------------------------------------------------------------
+  // UI STATE
+  // --------------------------------------------------------------------------
 
   const [showPassword, setShowPassword] =
     useState(false);
@@ -137,6 +194,10 @@ export default function SignUp() {
     useState(false);
 
 
+  // --------------------------------------------------------------------------
+  // VALIDATION STATE
+  // --------------------------------------------------------------------------
+
   const [touched, setTouched] = useState({
     name: false,
     email: false,
@@ -144,6 +205,10 @@ export default function SignUp() {
     confirmPassword: false,
   });
 
+
+  // --------------------------------------------------------------------------
+  // SUBMISSION STATE
+  // --------------------------------------------------------------------------
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
@@ -155,9 +220,9 @@ export default function SignUp() {
     useState(false);
 
 
-  /* ------------------------------------------------------------------------ */
-  /* Password strength                                                        */
-  /* ------------------------------------------------------------------------ */
+  // --------------------------------------------------------------------------
+  // PASSWORD STRENGTH
+  // --------------------------------------------------------------------------
 
   const strength = useMemo(
     () => getPasswordStrength(password),
@@ -165,49 +230,69 @@ export default function SignUp() {
   );
 
 
-  /* ------------------------------------------------------------------------ */
-  /* Validation errors                                                        */
-  /* ------------------------------------------------------------------------ */
+  // --------------------------------------------------------------------------
+  // NAME VALIDATION
+  // --------------------------------------------------------------------------
 
   const nameError =
     touched.name && !name.trim()
       ? "Please enter your name."
+
       : touched.name &&
         name.trim().length < MIN_NAME_LENGTH
       ? "Please enter your full name."
+
       : "";
 
+
+  // --------------------------------------------------------------------------
+  // EMAIL VALIDATION
+  // --------------------------------------------------------------------------
 
   const emailError =
     touched.email && !email
       ? "Email is required."
+
       : touched.email &&
         !EMAIL_PATTERN.test(email)
       ? "Please enter a valid email address."
+
       : "";
 
+
+  // --------------------------------------------------------------------------
+  // PASSWORD VALIDATION
+  // --------------------------------------------------------------------------
 
   const passwordError =
     touched.password && !password
       ? "Password is required."
+
       : touched.password &&
         !meetsPasswordRequirements(password)
       ? "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number."
+
       : "";
 
+
+  // --------------------------------------------------------------------------
+  // CONFIRM PASSWORD VALIDATION
+  // --------------------------------------------------------------------------
 
   const confirmPasswordError =
     touched.confirmPassword && !confirmPassword
       ? "Please confirm your password."
+
       : touched.confirmPassword &&
         confirmPassword !== password
       ? "Passwords do not match."
+
       : "";
 
 
-  /* ------------------------------------------------------------------------ */
-  /* Overall form validation                                                  */
-  /* ------------------------------------------------------------------------ */
+  // --------------------------------------------------------------------------
+  // FORM VALIDATION
+  // --------------------------------------------------------------------------
 
   const isFormValid =
     name.trim().length >= MIN_NAME_LENGTH &&
@@ -217,33 +302,30 @@ export default function SignUp() {
     agreedToTerms;
 
 
-  /* ------------------------------------------------------------------------ */
-  /* Handle field blur                                                        */
-  /* ------------------------------------------------------------------------ */
+  // --------------------------------------------------------------------------
+  // HANDLE BLUR
+  // --------------------------------------------------------------------------
 
   function handleBlur(field) {
 
-    setTouched((prev) => ({
-      ...prev,
+    setTouched((previous) => ({
+      ...previous,
       [field]: true,
     }));
 
   }
 
 
-  /* ------------------------------------------------------------------------ */
-  /* Handle signup                                                            */
-  /* ------------------------------------------------------------------------ */
+  // --------------------------------------------------------------------------
+  // HANDLE SIGNUP
+  // --------------------------------------------------------------------------
 
   async function handleSubmit(e) {
 
     e.preventDefault();
 
 
-    /* ---------------------------------------------------------------------- */
-    /* Mark all fields as touched                                             */
-    /* ---------------------------------------------------------------------- */
-
+    // Show all validation messages
     setTouched({
       name: true,
       email: true,
@@ -255,11 +337,11 @@ export default function SignUp() {
     setFormError("");
 
 
-    /* ---------------------------------------------------------------------- */
-    /* Stop if form is invalid                                                */
-    /* ---------------------------------------------------------------------- */
-
-    if (!isFormValid || isSubmitting) {
+    // Stop if form is invalid
+    if (
+      !isFormValid ||
+      isSubmitting
+    ) {
       return;
     }
 
@@ -269,114 +351,88 @@ export default function SignUp() {
 
     try {
 
-      /* -------------------------------------------------------------------- */
-      /* Send signup request to FastAPI                                       */
-      /* -------------------------------------------------------------------- */
+      // --------------------------------------------------------------
+      // CALL REAL FASTAPI BACKEND
+      // --------------------------------------------------------------
 
-      const response = await fetch(
-        "/auth/signup",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            name: name.trim(),
-            email: email.trim(),
-            password: password,
-          }),
-        }
+      const user = await createAccount(
+        name.trim(),
+        email.trim(),
+        password
       );
 
 
-      /* -------------------------------------------------------------------- */
-      /* Convert response to JSON                                             */
-      /* -------------------------------------------------------------------- */
+      // --------------------------------------------------------------
+      // CHECK THAT BACKEND RETURNED A TOKEN
+      // --------------------------------------------------------------
 
-      const data = await response.json();
-
-
-      /* -------------------------------------------------------------------- */
-      /* Handle backend error                                                  */
-      /* -------------------------------------------------------------------- */
-
-      if (!response.ok) {
+      if (!user.access_token) {
 
         throw new Error(
-          data.detail ||
-          "Unable to create your account."
+          "Account was created, but no access token was returned."
         );
 
       }
 
 
-      /* -------------------------------------------------------------------- */
-      /* Save JWT access token                                                 */
-      /* -------------------------------------------------------------------- */
+      // --------------------------------------------------------------
+      // SAVE JWT
+      // --------------------------------------------------------------
 
       localStorage.setItem(
         "access_token",
-        data.access_token
+        user.access_token
       );
 
 
-      /* -------------------------------------------------------------------- */
-      /* Save token type                                                      */
-      /* -------------------------------------------------------------------- */
+      // --------------------------------------------------------------
+      // SAVE USER INFORMATION
+      // --------------------------------------------------------------
 
-      localStorage.setItem(
-        "token_type",
-        data.token_type || "bearer"
-      );
+      const loggedInUser = {
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        isLoggedIn: true,
+      };
 
-
-      /* -------------------------------------------------------------------- */
-      /* Save user information                                                */
-      /*                                                                        */
-      /* IMPORTANT:                                                           */
-      /* Password is NOT stored in localStorage.                              */
-      /* -------------------------------------------------------------------- */
 
       localStorage.setItem(
         "user",
-        JSON.stringify({
-          user_id: data.user_id,
-          name: data.name,
-          email: data.email,
-          isLoggedIn: true,
-        })
+        JSON.stringify(loggedInUser)
       );
 
 
-      /* -------------------------------------------------------------------- */
-      /* Show success screen                                                  */
-      /* -------------------------------------------------------------------- */
+      // --------------------------------------------------------------
+      // SHOW SUCCESS
+      // --------------------------------------------------------------
 
       setIsSuccess(true);
 
 
-      /* -------------------------------------------------------------------- */
-      /* Redirect directly to dashboard                                       */
-      /* -------------------------------------------------------------------- */
+      // --------------------------------------------------------------
+      // REDIRECT: back to the page they wanted (e.g. Verify),
+      // otherwise to the dashboard
+      // --------------------------------------------------------------
 
       setTimeout(() => {
 
-        navigate("/dashboard");
+        navigate(redirectTo, { replace: true });
 
       }, 700);
 
 
-    } catch (err) {
+    } catch (error) {
 
-      /* -------------------------------------------------------------------- */
-      /* Display signup error                                                 */
-      /* -------------------------------------------------------------------- */
+      console.error(
+        "Signup error:",
+        error
+      );
+
 
       setFormError(
-        err.message ||
-        "Unable to create your account. Please try again."
+        error.message ||
+          "Unable to create your account. Please try again."
       );
 
 
@@ -389,9 +445,9 @@ export default function SignUp() {
   }
 
 
-  /* ------------------------------------------------------------------------ */
-  /* UI                                                                       */
-  /* ------------------------------------------------------------------------ */
+  // ==========================================================================
+  // UI
+  // ==========================================================================
 
   return (
 
@@ -400,11 +456,12 @@ export default function SignUp() {
       <div className="signup-layout">
 
 
-        {/* ================================================================== */}
-        {/* Branding side                                                       */}
-        {/* ================================================================== */}
+        {/* ==================================================================
+            BRANDING SIDE
+        ================================================================== */}
 
         <motion.aside
+
           className="signup-branding"
 
           initial={{
@@ -420,6 +477,7 @@ export default function SignUp() {
           transition={{
             duration: 0.4,
           }}
+
         >
 
           <div
@@ -429,6 +487,9 @@ export default function SignUp() {
 
 
           <div className="signup-branding__content">
+
+
+            {/* Logo */}
 
             <Link
               to="/"
@@ -440,13 +501,14 @@ export default function SignUp() {
                 alt="MedGuard AI logo"
               />
 
-
               <span>
                 MedGuard <em>AI</em>
               </span>
 
             </Link>
 
+
+            {/* Heading */}
 
             <h1 className="signup-branding__headline">
 
@@ -459,14 +521,18 @@ export default function SignUp() {
             </h1>
 
 
+            {/* Description */}
+
             <p className="signup-branding__text">
 
               Join MedGuard AI and make medicine
-              verification faster, smarter, and
-              more accessible.
+              verification faster, smarter, and more
+              accessible.
 
             </p>
 
+
+            {/* Trust Points */}
 
             <ul className="signup-branding__trust-list">
 
@@ -489,14 +555,14 @@ export default function SignUp() {
         </motion.aside>
 
 
-        {/* ================================================================== */}
-        {/* Signup form side                                                    */}
-        {/* ================================================================== */}
+        {/* ==================================================================
+            SIGNUP FORM SIDE
+        ================================================================== */}
 
         <div className="signup-form-side">
 
 
-          {/* Back to home */}
+          {/* Back to Home */}
 
           <Link
             to="/"
@@ -513,6 +579,7 @@ export default function SignUp() {
 
 
           <motion.div
+
             className="signup-card"
 
             initial={{
@@ -529,19 +596,22 @@ export default function SignUp() {
               duration: 0.4,
               delay: 0.05,
             }}
+
           >
 
             <AnimatePresence mode="wait">
 
 
+              {/* ============================================================
+                  SUCCESS STATE
+              ============================================================ */}
+
               {isSuccess ? (
 
-                /* ========================================================== */
-                /* Success screen                                              */
-                /* ========================================================== */
-
                 <motion.div
+
                   key="success"
+
                   className="signup-success"
 
                   initial={{
@@ -557,6 +627,7 @@ export default function SignUp() {
                   transition={{
                     duration: 0.3,
                   }}
+
                 >
 
                   <HiOutlineCheckCircle
@@ -574,7 +645,9 @@ export default function SignUp() {
 
                   <p className="signup-success__text">
 
-                    Taking you to your dashboard&hellip;
+                    {redirectTo === "/dashboard"
+                      ? "Taking you to your dashboard\u2026"
+                      : "Taking you back\u2026"}
 
                   </p>
 
@@ -583,11 +656,13 @@ export default function SignUp() {
 
               ) : (
 
-                /* ========================================================== */
-                /* Signup form                                                 */
-                /* ========================================================== */
+
+                /* ==========================================================
+                   FORM
+                ========================================================== */
 
                 <motion.div
+
                   key="form"
 
                   initial={{
@@ -597,8 +672,8 @@ export default function SignUp() {
                   exit={{
                     opacity: 0,
                   }}
-                >
 
+                >
 
                   <h2 className="signup-card__title">
 
@@ -615,16 +690,18 @@ export default function SignUp() {
                   </p>
 
 
-                  {/* ====================================================== */}
-                  {/* Backend error                                            */}
-                  {/* ====================================================== */}
+                  {/* ========================================================
+                      ERROR
+                  ======================================================== */}
 
                   <AnimatePresence>
 
                     {formError && (
 
                       <motion.p
+
                         className="signup-error"
+
                         role="alert"
 
                         initial={{
@@ -645,6 +722,7 @@ export default function SignUp() {
                         transition={{
                           duration: 0.2,
                         }}
+
                       >
 
                         {formError}
@@ -662,14 +740,16 @@ export default function SignUp() {
                   >
 
 
-                    {/* ==================================================== */}
-                    {/* Full Name                                              */}
-                    {/* ==================================================== */}
+                    {/* ======================================================
+                        FULL NAME
+                    ====================================================== */}
 
                     <div className="form-field">
 
                       <label htmlFor="signup-name">
+
                         Full Name
+
                       </label>
 
 
@@ -688,8 +768,11 @@ export default function SignUp() {
 
 
                         <input
+
                           id="signup-name"
+
                           type="text"
+
                           value={name}
 
                           onChange={(e) =>
@@ -703,6 +786,7 @@ export default function SignUp() {
                           }
 
                           placeholder="Enter your full name"
+
                           autoComplete="name"
 
                           aria-invalid={
@@ -714,6 +798,7 @@ export default function SignUp() {
                               ? "signup-name-error"
                               : undefined
                           }
+
                         />
 
                       </div>
@@ -735,14 +820,16 @@ export default function SignUp() {
                     </div>
 
 
-                    {/* ==================================================== */}
-                    {/* Email                                                   */}
-                    {/* ==================================================== */}
+                    {/* ======================================================
+                        EMAIL
+                    ====================================================== */}
 
                     <div className="form-field">
 
                       <label htmlFor="signup-email">
+
                         Email Address
+
                       </label>
 
 
@@ -761,8 +848,11 @@ export default function SignUp() {
 
 
                         <input
+
                           id="signup-email"
+
                           type="email"
+
                           value={email}
 
                           onChange={(e) =>
@@ -776,6 +866,7 @@ export default function SignUp() {
                           }
 
                           placeholder="Enter your email"
+
                           autoComplete="email"
 
                           aria-invalid={
@@ -787,6 +878,7 @@ export default function SignUp() {
                               ? "signup-email-error"
                               : undefined
                           }
+
                         />
 
                       </div>
@@ -808,14 +900,16 @@ export default function SignUp() {
                     </div>
 
 
-                    {/* ==================================================== */}
-                    {/* Password                                                */}
-                    {/* ==================================================== */}
+                    {/* ======================================================
+                        PASSWORD
+                    ====================================================== */}
 
                     <div className="form-field">
 
                       <label htmlFor="signup-password">
+
                         Password
+
                       </label>
 
 
@@ -834,6 +928,7 @@ export default function SignUp() {
 
 
                         <input
+
                           id="signup-password"
 
                           type={
@@ -863,16 +958,19 @@ export default function SignUp() {
                           }
 
                           aria-describedby="signup-password-strength signup-password-error"
+
                         />
 
 
                         <button
+
                           type="button"
+
                           className="input-wrap__toggle"
 
                           onClick={() =>
                             setShowPassword(
-                              (v) => !v
+                              (value) => !value
                             )
                           }
 
@@ -881,6 +979,7 @@ export default function SignUp() {
                               ? "Hide password"
                               : "Show password"
                           }
+
                         >
 
                           {showPassword ? (
@@ -901,6 +1000,8 @@ export default function SignUp() {
 
                       </div>
 
+
+                      {/* Password strength */}
 
                       {password && (
 
@@ -955,14 +1056,16 @@ export default function SignUp() {
                     </div>
 
 
-                    {/* ==================================================== */}
-                    {/* Confirm Password                                       */}
-                    {/* ==================================================== */}
+                    {/* ======================================================
+                        CONFIRM PASSWORD
+                    ====================================================== */}
 
                     <div className="form-field">
 
                       <label htmlFor="signup-confirm-password">
+
                         Confirm Password
+
                       </label>
 
 
@@ -981,6 +1084,7 @@ export default function SignUp() {
 
 
                         <input
+
                           id="signup-confirm-password"
 
                           type={
@@ -1018,16 +1122,19 @@ export default function SignUp() {
                               ? "signup-confirm-password-error"
                               : undefined
                           }
+
                         />
 
 
                         <button
+
                           type="button"
+
                           className="input-wrap__toggle"
 
                           onClick={() =>
                             setShowConfirmPassword(
-                              (v) => !v
+                              (value) => !value
                             )
                           }
 
@@ -1036,6 +1143,7 @@ export default function SignUp() {
                               ? "Hide password"
                               : "Show password"
                           }
+
                         >
 
                           {showConfirmPassword ? (
@@ -1073,14 +1181,16 @@ export default function SignUp() {
                     </div>
 
 
-                    {/* ==================================================== */}
-                    {/* Terms                                                   */}
-                    {/* ==================================================== */}
+                    {/* ======================================================
+                        TERMS
+                    ====================================================== */}
 
                     <label className="terms-label">
 
                       <input
+
                         type="checkbox"
+
                         checked={agreedToTerms}
 
                         onChange={(e) =>
@@ -1088,6 +1198,7 @@ export default function SignUp() {
                             e.target.checked
                           )
                         }
+
                       />
 
 
@@ -1097,33 +1208,34 @@ export default function SignUp() {
 
                         <Link to="/terms">
                           Terms of Service
-                        </Link>
+                        </Link>{" "}
 
-                        {" "}and{" "}
+                        and{" "}
 
                         <Link to="/privacy">
                           Privacy Policy
-                        </Link>
-
-                        .
+                        </Link>.
 
                       </span>
 
                     </label>
 
 
-                    {/* ==================================================== */}
-                    {/* Submit button                                           */}
-                    {/* ==================================================== */}
+                    {/* ======================================================
+                        SUBMIT BUTTON
+                    ====================================================== */}
 
                     <button
+
                       type="submit"
+
                       className="btn-signup"
 
                       disabled={
                         !isFormValid ||
                         isSubmitting
                       }
+
                     >
 
                       {isSubmitting ? (
@@ -1147,27 +1259,28 @@ export default function SignUp() {
 
                     </button>
 
+
                   </form>
 
 
-                  {/* ==================================================== */}
-                  {/* Login link                                              */}
-                  {/* ==================================================== */}
+                  {/* ========================================================
+                      LOGIN LINK
+                  ======================================================== */}
 
                   <p className="signup-login-note">
 
                     Already have an account?{" "}
 
-                    <Link to="/login">
+                    <Link to="/login" state={location.state}>
                       Login
                     </Link>
 
                   </p>
 
 
-                  {/* ==================================================== */}
-                  {/* Security note                                           */}
-                  {/* ==================================================== */}
+                  {/* ========================================================
+                      SECURITY NOTE
+                  ======================================================== */}
 
                   <p className="signup-trust-note">
 
@@ -1175,10 +1288,10 @@ export default function SignUp() {
                       aria-hidden="true"
                     />
 
-                    Your account information is handled securely.
+                    Your account information is handled
+                    securely.
 
                   </p>
-
 
                 </motion.div>
 
@@ -1196,3 +1309,4 @@ export default function SignUp() {
 
   );
 }
+

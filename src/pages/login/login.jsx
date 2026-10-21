@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+
 import {
   HiOutlineMail,
   HiOutlineLockClosed,
@@ -12,21 +13,67 @@ import {
 
 import logo from "../../assets/logo.png";
 import "./login.css";
+import { markSession } from "../../utils/session";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_PATTERN =
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// ---------------------------------------------------------------------------
+// REAL BACKEND AUTHENTICATION
+// ---------------------------------------------------------------------------
+
+async function authenticate(email, password) {
+  const response = await fetch(
+    `${API_BASE}/auth/login`,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        email: email.trim(),
+        password: password,
+      }),
+    }
+  );
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      "The server returned an invalid response."
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail ||
+        "Unable to sign in. Please check your email and password."
+    );
+  }
+
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// LOGIN COMPONENT
+// ---------------------------------------------------------------------------
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // ---------------------------------------------------------
-  // FORM STATE
-  // ---------------------------------------------------------
-
+  // Form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // UI state
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
@@ -38,42 +85,39 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
 
-
-  // ---------------------------------------------------------
+  // -------------------------------------------------------------------------
   // EMAIL VALIDATION
-  // ---------------------------------------------------------
+  // -------------------------------------------------------------------------
 
   const emailError =
     touched.email && !email
       ? "Email is required."
-      : touched.email && !EMAIL_PATTERN.test(email)
+      : touched.email &&
+        !EMAIL_PATTERN.test(email)
       ? "Please enter a valid email address."
       : "";
 
-
-  // ---------------------------------------------------------
+  // -------------------------------------------------------------------------
   // PASSWORD VALIDATION
-  // ---------------------------------------------------------
+  // -------------------------------------------------------------------------
 
   const passwordError =
     touched.password && !password
       ? "Password is required."
       : "";
 
-
-  // ---------------------------------------------------------
+  // -------------------------------------------------------------------------
   // FORM VALIDATION
-  // ---------------------------------------------------------
+  // -------------------------------------------------------------------------
 
   const isFormValid =
-    email.trim() &&
-    EMAIL_PATTERN.test(email.trim()) &&
+    email &&
+    EMAIL_PATTERN.test(email) &&
     password;
 
-
-  // ---------------------------------------------------------
-  // HANDLE BLUR
-  // ---------------------------------------------------------
+  // -------------------------------------------------------------------------
+  // BLUR
+  // -------------------------------------------------------------------------
 
   function handleBlur(field) {
     setTouched((prev) => ({
@@ -82,10 +126,9 @@ export default function Login() {
     }));
   }
 
-
-  // ---------------------------------------------------------
+  // -------------------------------------------------------------------------
   // LOGIN
-  // ---------------------------------------------------------
+  // -------------------------------------------------------------------------
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -96,134 +139,99 @@ export default function Login() {
       password: true,
     });
 
-    // Clear previous backend error
     setFormError("");
-
 
     // Stop if form is invalid
     if (
-      !email.trim() ||
-      !EMAIL_PATTERN.test(email.trim()) ||
+      !email ||
+      !EMAIL_PATTERN.test(email) ||
       !password ||
       isSubmitting
     ) {
       return;
     }
 
-
     setIsSubmitting(true);
 
-
     try {
-      // -------------------------------------------------------
-      // SEND LOGIN REQUEST TO FASTAPI
-      // -------------------------------------------------------
+      // ---------------------------------------------------------------------
+      // CALL FASTAPI LOGIN
+      // ---------------------------------------------------------------------
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/auth/login",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            email: email.trim(),
-            password: password,
-          }),
-        }
+      const data = await authenticate(
+        email,
+        password
       );
 
-
-      // -------------------------------------------------------
-      // READ RESPONSE
-      // -------------------------------------------------------
-
-      const data = await response.json();
-
-
-      // -------------------------------------------------------
-      // HANDLE BACKEND ERROR
-      // -------------------------------------------------------
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail ||
-            "Unable to sign in. Please check your email and password."
-        );
-      }
-
-
-      // -------------------------------------------------------
+      // ---------------------------------------------------------------------
       // SAVE JWT TOKEN
-      // -------------------------------------------------------
+      // ---------------------------------------------------------------------
 
       localStorage.setItem(
         "access_token",
         data.access_token
       );
 
+      // ---------------------------------------------------------------------
+      // SAVE USER INFORMATION
+      // ---------------------------------------------------------------------
 
-      // Save token type
-      localStorage.setItem(
-        "token_type",
-        data.token_type || "bearer"
-      );
-
-
-      // -------------------------------------------------------
-      // SAVE LOGGED-IN USER
-      // -------------------------------------------------------
+      const loggedInUser = {
+        user_id: data.user_id,
+        name: data.name,
+        email: data.email,
+        isLoggedIn: true,
+      };
 
       localStorage.setItem(
         "user",
-        JSON.stringify({
-          user_id: data.user_id,
-          name: data.name,
-          email: data.email,
-          isLoggedIn: true,
-        })
+        JSON.stringify(loggedInUser)
       );
 
+      // ---------------------------------------------------------------------
+      // SAVE REMEMBER ME PREFERENCE
+      // ---------------------------------------------------------------------
 
-      // -------------------------------------------------------
-      // REDIRECT TO DASHBOARD
-      // -------------------------------------------------------
+      localStorage.setItem(
+        "rememberMe",
+        rememberMe ? "true" : "false"
+      );
 
-      navigate("/dashboard");
+      // Session marker: lets "Remember me" off log the user out when the
+      // browser is closed (see utils/session.js)
+      markSession();
 
+      // ---------------------------------------------------------------------
+      // GO TO DASHBOARD
+      // ---------------------------------------------------------------------
 
-    } catch (error) {
-      // -------------------------------------------------------
-      // SHOW LOGIN ERROR
-      // -------------------------------------------------------
+      // Go back to the page the user wanted (e.g. Verify), else dashboard
+      navigate(location.state?.from || "/dashboard", { replace: true });
+
+    } catch (err) {
+      console.error("Login error:", err);
 
       setFormError(
-        error.message ||
+        err.message ||
           "Unable to sign in. Please check your email and password."
       );
-
-
     } finally {
-      // -------------------------------------------------------
-      // STOP LOADING
-      // -------------------------------------------------------
-
       setIsSubmitting(false);
     }
   }
 
+  // -------------------------------------------------------------------------
+  // UI
+  // -------------------------------------------------------------------------
 
   return (
     <section className="login-page">
 
       <div className="login-layout">
 
-
-        {/* =====================================================
+        {/* ===============================================================
             BRANDING SIDE
-        ====================================================== */}
+        =============================================================== */}
 
         <motion.aside
           className="login-branding"
@@ -248,11 +256,9 @@ export default function Login() {
             aria-hidden="true"
           />
 
-
           <div className="login-branding__content">
 
-
-            {/* ================= LOGO ================= */}
+            {/* Logo */}
 
             <Link
               to="/"
@@ -270,19 +276,19 @@ export default function Login() {
 
             </Link>
 
-
-            {/* ================= HEADING ================= */}
+            {/* Heading */}
 
             <h1 className="login-branding__headline">
 
               Verify Medicines.
+
               <br />
+
               Protect Lives.
 
             </h1>
 
-
-            {/* ================= DESCRIPTION ================= */}
+            {/* Description */}
 
             <p className="login-branding__text">
 
@@ -292,8 +298,7 @@ export default function Login() {
 
             </p>
 
-
-            {/* ================= TRUST POINTS ================= */}
+            {/* Trust Points */}
 
             <ul className="login-branding__trust-list">
 
@@ -311,21 +316,18 @@ export default function Login() {
 
             </ul>
 
-
           </div>
 
         </motion.aside>
 
 
-
-        {/* =====================================================
-            LOGIN FORM SIDE
-        ====================================================== */}
+        {/* ===============================================================
+            LOGIN FORM
+        =============================================================== */}
 
         <div className="login-form-side">
 
-
-          {/* ================= BACK TO HOME ================= */}
+          {/* Back to Home */}
 
           <Link
             to="/"
@@ -339,7 +341,6 @@ export default function Login() {
             Back to Home
 
           </Link>
-
 
 
           <motion.div
@@ -361,25 +362,18 @@ export default function Login() {
             }}
           >
 
-
-            {/* =================================================
-                HEADER
-            ================================================== */}
+            {/* Header */}
 
             <h2 className="login-card__title">
               Welcome Back
             </h2>
-
 
             <p className="login-card__subtitle">
               Sign in to continue to MedGuard AI.
             </p>
 
 
-
-            {/* =================================================
-                ERROR MESSAGE
-            ================================================== */}
+            {/* Error Message */}
 
             <AnimatePresence>
 
@@ -418,27 +412,22 @@ export default function Login() {
             </AnimatePresence>
 
 
-
-            {/* =================================================
-                LOGIN FORM
-            ================================================== */}
+            {/* Form */}
 
             <form
               onSubmit={handleSubmit}
               noValidate
             >
 
-
-              {/* =================================================
+              {/* =====================================================
                   EMAIL
-              ================================================== */}
+              ===================================================== */}
 
               <div className="form-field">
 
                 <label htmlFor="login-email">
                   Email Address
                 </label>
-
 
                 <div
                   className={`input-wrap ${
@@ -452,7 +441,6 @@ export default function Login() {
                     className="input-wrap__icon"
                     aria-hidden="true"
                   />
-
 
                   <input
                     id="login-email"
@@ -485,16 +473,13 @@ export default function Login() {
 
                 </div>
 
-
                 {emailError && (
 
                   <p
                     className="field-error"
                     id="login-email-error"
                   >
-
                     {emailError}
-
                   </p>
 
                 )}
@@ -502,17 +487,15 @@ export default function Login() {
               </div>
 
 
-
-              {/* =================================================
+              {/* =====================================================
                   PASSWORD
-              ================================================== */}
+              ===================================================== */}
 
               <div className="form-field">
 
                 <label htmlFor="login-password">
                   Password
                 </label>
-
 
                 <div
                   className={`input-wrap ${
@@ -526,7 +509,6 @@ export default function Login() {
                     className="input-wrap__icon"
                     aria-hidden="true"
                   />
-
 
                   <input
                     id="login-password"
@@ -562,8 +544,7 @@ export default function Login() {
                     }
                   />
 
-
-                  {/* ================= SHOW / HIDE PASSWORD ================= */}
+                  {/* Show / Hide Password */}
 
                   <button
                     type="button"
@@ -601,16 +582,13 @@ export default function Login() {
 
                 </div>
 
-
                 {passwordError && (
 
                   <p
                     className="field-error"
                     id="login-password-error"
                   >
-
                     {passwordError}
-
                   </p>
 
                 )}
@@ -618,10 +596,9 @@ export default function Login() {
               </div>
 
 
-
-              {/* =================================================
+              {/* =====================================================
                   OPTIONS
-              ================================================== */}
+              ===================================================== */}
 
               <div className="form-row">
 
@@ -648,22 +625,18 @@ export default function Login() {
                   to="/forgot-password"
                   className="forgot-link"
                 >
-
                   Forgot password?
-
                 </Link>
 
               </div>
 
 
-
-              {/* =================================================
+              {/* =====================================================
                   LOGIN BUTTON
-              ================================================== */}
+              ===================================================== */}
 
               <button
                 type="submit"
-
                 className="btn-login"
 
                 disabled={
@@ -697,30 +670,27 @@ export default function Login() {
 
               </button>
 
-
             </form>
 
 
-
-            {/* =================================================
+            {/* =====================================================
                 SIGNUP
-            ================================================== */}
+            ===================================================== */}
 
             <p className="login-signup-note">
 
               Don&apos;t have an account?{" "}
 
-              <Link to="/signup">
+              <Link to="/signup" state={location.state}>
                 Create an account
               </Link>
 
             </p>
 
 
-
-            {/* =================================================
+            {/* =====================================================
                 SECURITY NOTE
-            ================================================== */}
+            ===================================================== */}
 
             <p className="login-trust-note">
 
@@ -733,7 +703,6 @@ export default function Login() {
 
             </p>
 
-
           </motion.div>
 
         </div>
@@ -743,5 +712,3 @@ export default function Login() {
     </section>
   );
 }
-
-

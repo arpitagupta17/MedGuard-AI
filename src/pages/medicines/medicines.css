@@ -41,3 +41,7 @@
 .medicine-modal__notice { margin:18px 0; padding:13px; background:#f6f9fc; border-radius:10px; color:#536178; font-size:12px; line-height:1.5; display:flex; gap:8px; }
 @media(max-width:850px){.medicine-grid{grid-template-columns:1fr 1fr}.mg-page__heading{align-items:flex-start; flex-direction:column}}
 @media(max-width:560px){.medicine-grid{grid-template-columns:1fr}.mg-page{padding:95px 16px 50px}.mg-page__heading h1{font-size:30px}}
+.medicine-badge--unverified {
+  background: #f1f5f9;
+  color: #475569;
+}
