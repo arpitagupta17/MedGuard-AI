@@ -1,17 +1,5 @@
-cd backend
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-
-
-# for password use your own postgresql password (should be in env)
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/medgaurd
-SECRET_KEY=YOUR_SECRET_KEY
-
-#python lib required
 fastapi
-uvicorn
+uvicorn[standard]
 sqlalchemy
 psycopg2-binary
 python-dotenv
