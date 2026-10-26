@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -17,13 +18,8 @@ import {
 } from "react-icons/hi";
 import "../pages/dashboard/dashboard.css";
 
-/* ------------------------------------------------------------------ */
-/* Shared layout for every page after login:                           */
-/* sidebar + top bar + notifications + profile menu                    */
-/* Use it by wrapping a page:  <DashboardLayout title="History"> ...   */
-/* ------------------------------------------------------------------ */
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_BASE =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 const NAV_ITEMS = [
   { label: "Dashboard", path: "/dashboard", icon: HiOutlineHome },
@@ -34,7 +30,6 @@ const NAV_ITEMS = [
   { label: "Settings", path: "/settings", icon: HiOutlineCog },
 ];
 
-// The pages inside the layout can read the history without fetching it again
 const DashboardDataContext = createContext({
   history: [],
   loading: true,
@@ -55,22 +50,32 @@ function readStoredUser() {
 
 function nameFromUser(user) {
   if (!user) return "User";
-  const name = user.name || user.full_name || user.fullName || user.username;
+
+  const name =
+    user.name || user.full_name || user.fullName || user.username;
+
   if (name) return String(name);
   if (user.email) return String(user.email).split("@")[0];
+
   return "User";
 }
 
 function initialsFromName(name) {
   const parts = (name || "U").trim().split(" ").filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 function formatDateTime(iso) {
   if (!iso) return "—";
+
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
+
   return date.toLocaleString(undefined, {
     day: "numeric",
     month: "short",
@@ -113,12 +118,15 @@ export default function DashboardLayout({ title, children }) {
     navigate(path);
   }
 
-  // Load the logged-in user's verification history (for the bell and Dashboard)
+  // Load the current user's verification history.
   useEffect(() => {
     const token = localStorage.getItem("access_token");
 
     if (!token) {
-      navigate("/login", { replace: true, state: { from: location.pathname } });
+      navigate("/login", {
+        replace: true,
+        state: { from: location.pathname },
+      });
       return undefined;
     }
 
@@ -126,17 +134,28 @@ export default function DashboardLayout({ title, children }) {
 
     async function load() {
       try {
-        const response = await fetch(`${API_BASE}/history/`, {
-          headers: { Authorization: `Bearer ${token}` },
+        setLoading(true);
+        setError("");
+
+        // Correct endpoint: verification.py defines GET /verification/
+        const response = await fetch(`${API_BASE}/verification/`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
 
         if (response.status === 401) {
           clearSession();
-          navigate("/login", { replace: true, state: { from: location.pathname } });
+          navigate("/login", {
+            replace: true,
+            state: { from: location.pathname },
+          });
           return;
         }
 
-        if (!response.ok) throw new Error("failed");
+        if (!response.ok) {
+          throw new Error(`History request failed: ${response.status}`);
+        }
 
         const data = await response.json();
 
@@ -144,12 +163,18 @@ export default function DashboardLayout({ title, children }) {
           setHistory(Array.isArray(data) ? data : []);
           setError("");
         }
-      } catch {
+      } catch (err) {
+        console.error("Could not load verification history:", err);
+
         if (!cancelled) {
-          setError("Could not load your activity. Make sure the backend is running.");
+          setError(
+            "Could not load your activity. Please try again later."
+          );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
@@ -160,32 +185,52 @@ export default function DashboardLayout({ title, children }) {
     };
   }, [navigate, location.pathname]);
 
-  // Close menus when clicking outside
+  // Close menus when clicking outside.
   useEffect(() => {
     function handleClickOutside(event) {
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target)
+      ) {
         setProfileOpen(false);
       }
-      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+
+      if (
+        notificationsRef.current &&
+        !notificationsRef.current.contains(event.target)
+      ) {
         setNotificationsOpen(false);
       }
     }
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   const displayName = nameFromUser(user);
   const initials = initialsFromName(displayName);
-  const flaggedRecent = history.filter((h) => h.result === "flagged").slice(0, 3);
+
+  const flaggedRecent = history
+    .filter((item) => item.result === "flagged")
+    .slice(0, 3);
 
   return (
     <div className="mg-dashboard">
       {sidebarOpen && (
-        <div className="mg-sidebar-overlay" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+        <div
+          className="mg-sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
       )}
 
-      {/* Sidebar */}
-      <aside className={`mg-sidebar ${sidebarOpen ? "is-open" : ""}`} aria-label="Primary navigation">
+      <aside
+        className={`mg-sidebar ${sidebarOpen ? "is-open" : ""}`}
+        aria-label="Primary navigation"
+      >
         <button
           type="button"
           className="mg-sidebar__close"
@@ -206,6 +251,7 @@ export default function DashboardLayout({ title, children }) {
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
+
             return (
               <button
                 key={item.path}
@@ -222,14 +268,17 @@ export default function DashboardLayout({ title, children }) {
         </nav>
 
         <div className="mg-sidebar__footer">
-          <button type="button" className="mg-nav-item mg-nav-item--logout" onClick={handleLogout}>
+          <button
+            type="button"
+            className="mg-nav-item mg-nav-item--logout"
+            onClick={handleLogout}
+          >
             <HiOutlineLogout aria-hidden="true" />
             Logout
           </button>
         </div>
       </aside>
 
-      {/* Main column */}
       <div className="mg-main">
         <header className="mg-header">
           <div className="mg-header__left">
@@ -251,17 +300,28 @@ export default function DashboardLayout({ title, children }) {
                 className="mg-icon-btn"
                 aria-label="Notifications"
                 aria-expanded={notificationsOpen}
-                onClick={() => setNotificationsOpen((open) => !open)}
+                onClick={() =>
+                  setNotificationsOpen((open) => !open)
+                }
               >
                 <HiOutlineBell />
-                {flaggedRecent.length > 0 && <span className="mg-icon-btn__dot" aria-hidden="true" />}
+                {flaggedRecent.length > 0 && (
+                  <span
+                    className="mg-icon-btn__dot"
+                    aria-hidden="true"
+                  />
+                )}
               </button>
 
               {notificationsOpen && (
                 <div className="mg-notifications__dropdown">
                   <div className="mg-notifications__head">
                     <strong>Notifications</strong>
-                    <span>{flaggedRecent.length ? `${flaggedRecent.length} to review` : "All clear"}</span>
+                    <span>
+                      {flaggedRecent.length
+                        ? `${flaggedRecent.length} to review`
+                        : "All clear"}
+                    </span>
                   </div>
 
                   {flaggedRecent.length === 0 && (
@@ -275,17 +335,27 @@ export default function DashboardLayout({ title, children }) {
                   )}
 
                   {flaggedRecent.map((item) => (
-                    <div className="mg-notification mg-notification--warning" key={item.id}>
+                    <div
+                      className="mg-notification mg-notification--warning"
+                      key={item.verification_id ?? item.id}
+                    >
                       <span>⚠️</span>
                       <div>
                         <strong>Medicine flagged</strong>
-                        <p>{item.medicine} needs further verification.</p>
-                        <small>{formatDateTime(item.date)}</small>
+                        <p>
+                          Verification #{item.verification_id ?? item.id} needs review.
+                        </p>
+                        <small>
+                          {formatDateTime(item.verified_at ?? item.date)}
+                        </small>
                       </div>
                     </div>
                   ))}
 
-                  <button className="mg-notifications__all" onClick={() => goTo("/history")}>
+                  <button
+                    className="mg-notifications__all"
+                    onClick={() => goTo("/history")}
+                  >
                     View history
                   </button>
                 </div>
@@ -300,32 +370,58 @@ export default function DashboardLayout({ title, children }) {
                 aria-haspopup="menu"
                 aria-expanded={profileOpen}
               >
-                <span className="mg-avatar" aria-hidden="true">{initials}</span>
+                <span className="mg-avatar" aria-hidden="true">
+                  {initials}
+                </span>
+
                 <span className="mg-profile__meta">
-                  <span className="mg-profile__name">{displayName}</span>
+                  <span className="mg-profile__name">
+                    {displayName}
+                  </span>
                   <span className="mg-profile__badge">
-                    <HiOutlineCheckCircle aria-hidden="true" /> Signed in
+                    <HiOutlineCheckCircle aria-hidden="true" />
+                    Signed in
                   </span>
                 </span>
-                <HiOutlineChevronDown className="mg-profile__chevron" aria-hidden="true" />
+
+                <HiOutlineChevronDown
+                  className="mg-profile__chevron"
+                  aria-hidden="true"
+                />
               </button>
 
               {profileOpen && (
                 <div className="mg-profile__dropdown" role="menu">
-                  <button type="button" className="mg-profile__dropdown-item" role="menuitem" onClick={() => goTo("/settings")}>
-                    <HiOutlineUser aria-hidden="true" /> Profile
+                  <button
+                    type="button"
+                    className="mg-profile__dropdown-item"
+                    role="menuitem"
+                    onClick={() => goTo("/settings")}
+                  >
+                    <HiOutlineUser aria-hidden="true" />
+                    Profile
                   </button>
-                  <button type="button" className="mg-profile__dropdown-item" role="menuitem" onClick={() => goTo("/settings")}>
-                    <HiOutlineCog aria-hidden="true" /> Settings
+
+                  <button
+                    type="button"
+                    className="mg-profile__dropdown-item"
+                    role="menuitem"
+                    onClick={() => goTo("/settings")}
+                  >
+                    <HiOutlineCog aria-hidden="true" />
+                    Settings
                   </button>
+
                   <div className="mg-profile__dropdown-divider" />
+
                   <button
                     type="button"
                     className="mg-profile__dropdown-item mg-profile__dropdown-item--danger"
                     role="menuitem"
                     onClick={handleLogout}
                   >
-                    <HiOutlineLogout aria-hidden="true" /> Logout
+                    <HiOutlineLogout aria-hidden="true" />
+                    Logout
                   </button>
                 </div>
               )}
@@ -333,7 +429,9 @@ export default function DashboardLayout({ title, children }) {
           </div>
         </header>
 
-        <DashboardDataContext.Provider value={{ history, loading, error }}>
+        <DashboardDataContext.Provider
+          value={{ history, loading, error }}
+        >
           <div className="mg-shell-content">{children}</div>
         </DashboardDataContext.Provider>
       </div>
