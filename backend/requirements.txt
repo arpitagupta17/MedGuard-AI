@@ -16,5 +16,4 @@ rapidfuzz
 zxing-cpp
 google-auth
 requests
-easyocr
-python-bidi
+rapidocr-onnxruntime
