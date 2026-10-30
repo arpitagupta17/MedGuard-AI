@@ -1,4 +1,11 @@
+import os
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
+from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -127,15 +134,192 @@ def login(
 
 
 # -------------------------
+# GOOGLE SIGN-IN / SIGN-UP
+# The website sends the credential Google gave the user. We check it with
+# Google, then find the account with that email or create one.
+# Needs  GOOGLE_CLIENT_ID=...  in backend/.env
+# -------------------------
+
+class GoogleLogin(BaseModel):
+    credential: str
+
+
+@router.post("/google")
+def google_login(
+    data: GoogleLogin,
+    db: Session = Depends(get_db)
+):
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+
+    if not client_id:
+        raise HTTPException(
+            status_code=503,
+            detail="Google sign-in is not set up on the server."
+        )
+
+    # Google signs the credential. This checks the signature, the expiry
+    # and that it was issued for OUR client id.
+    try:
+        info = google_id_token.verify_oauth2_token(
+            data.credential,
+            google_requests.Request(),
+            client_id,
+            clock_skew_in_seconds=10
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=401,
+            detail="Google sign-in failed. Please try again."
+        )
+
+    email = (info.get("email") or "").strip().lower()
+
+    # Only trust an email address that Google itself has verified
+    if not email or not info.get("email_verified"):
+        raise HTTPException(
+            status_code=401,
+            detail="Your Google email address is not verified."
+        )
+
+    user = db.query(User).filter(
+        func.lower(User.email) == email
+    ).first()
+
+    is_new = user is None
+
+    if is_new:
+        name = (info.get("name") or email.split("@")[0]).strip()[:100]
+
+        # A Google account has no MedGuard password. A long random one is
+        # stored so the password column is filled and nobody can guess it.
+        user = User(
+            name=name,
+            email=email,
+            password=hash_password(secrets.token_urlsafe(32))
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    access_token = create_access_token(
+        data={
+            "sub": str(user.user_id),
+            "email": user.email
+        }
+    )
+
+    return {
+        "message": "Account created successfully" if is_new else "Login successful",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": user.user_id,
+        "name": user.name,
+        "email": user.email,
+        "is_new": is_new
+    }
+
+
+# -------------------------
 # CURRENT USER
 # -------------------------
 
+def get_user_or_401(db: Session, current_user) -> User:
+    """The logged-in user's row, or a 401 if the account no longer exists."""
+    user = db.query(User).filter(
+        User.user_id == int(current_user["sub"])
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Account not found")
+
+    return user
+
+
 @router.get("/me")
 def get_me(
+    db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
+    user = get_user_or_401(db, current_user)
 
     return {
-        "user_id": current_user["sub"],
-        "email": current_user["email"]
+        "user_id": user.user_id,
+        "name": user.name,
+        "email": user.email
     }
+
+
+# -------------------------
+# UPDATE PROFILE (name)
+# -------------------------
+
+class ProfileUpdate(BaseModel):
+    name: str
+
+
+@router.put("/me")
+def update_me(
+    data: ProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    name = data.name.strip()
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Name cannot be empty")
+
+    if len(name) > 100:
+        raise HTTPException(status_code=400, detail="Name is too long")
+
+    user = get_user_or_401(db, current_user)
+
+    user.name = name
+    db.commit()
+
+    return {
+        "message": "Profile updated",
+        "user_id": user.user_id,
+        "name": user.name,
+        "email": user.email
+    }
+
+
+# -------------------------
+# CHANGE PASSWORD
+# -------------------------
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+def change_password(
+    data: PasswordChange,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    user = get_user_or_401(db, current_user)
+
+    if not verify_password(data.current_password, user.password):
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect"
+        )
+
+    if len(data.new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be at least 8 characters"
+        )
+
+    if data.new_password == data.current_password:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different from the current one"
+        )
+
+    user.password = hash_password(data.new_password)
+    db.commit()
+
+    return {"message": "Password changed successfully"}

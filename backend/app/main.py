@@ -1,3 +1,4 @@
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,8 +6,14 @@ from sqlalchemy import text
 
 from app.database import engine, Base
 from app.models import user, medicine, verification as verification_model
-from app.routes import medicines, auth, verification
-
+from app.routes import (
+    medicines,
+    auth,
+    verification,
+    ocr_verification,
+    verification_history,
+    reports,
+)
 
 # ============================================================
 # DATABASE TABLE INITIALIZATION
@@ -28,11 +35,20 @@ app = FastAPI(
 
 # ============================================================
 # CORS CONFIGURATION
+# Allows localhost (development) and any *.netlify.app site.
+# For a custom domain, set FRONTEND_URL on Render, e.g.
+#   FRONTEND_URL=https://www.mysite.com
 # ============================================================
+
+frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origins=[frontend_url] if frontend_url else [],
+    allow_origin_regex=(
+        r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+        r"|https://[a-zA-Z0-9-]+\.netlify\.app$"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,6 +62,9 @@ app.add_middleware(
 app.include_router(medicines.router)
 app.include_router(auth.router)
 app.include_router(verification.router)
+app.include_router(ocr_verification.router)
+app.include_router(verification_history.router)
+app.include_router(reports.router)
 
 
 # ============================================================
